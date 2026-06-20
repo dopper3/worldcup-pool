@@ -14,9 +14,9 @@ Google Form.
 
 ## The format
 
-Two contests, **knockout stage only** (Round of 32 → Final). Enter either or both.
+Three contests, **knockout stage only** (Round of 32 → Final). Enter any mix.
 
-### Contest 1 — Bracket · `$20`
+### Contest 1 — Bracket · `$40`
 Fill in the entire knockout bracket: pick the winner of every match from the
 Round of 32 to the Final. Points escalate each round:
 
@@ -41,9 +41,15 @@ result (W/D/L) only = **1 pt**. Each match locks at its own kickoff, and nobody
 can see anyone else's pick for a match until it kicks off. Predict as many or as
 few matches as you like.
 
+### Bonus — Third-place playoff · `$5`
+Predict the score of the 3rd-place playoff (the two losing semifinalists). Same
+scoring as match picks (exact = 3, right result = 1), **winner takes all** (ties
+split). Locks at that match's kickoff.
+
 ### Payouts & settlement
-Both contests pay **1st 70% / 2nd 30%, 3rd gets their entry back** (winner-take-all
-under 3 entries). The **Results** tab computes live projected payouts, each
+Bracket and Match picks pay **1st 70% / 2nd 30%, 3rd gets their entry back**
+(winner-take-all under 3 entries); the Third-place bonus is winner-take-all. The
+**Results** tab computes live projected payouts across all three contests, each
 player's net balance, and the **minimum set of transfers** to settle up — the
 same settlement engine as the PGA pool.
 

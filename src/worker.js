@@ -38,6 +38,12 @@ const ROUNDS = [
 ];
 const ROUND_BY_SLUG = Object.fromEntries(ROUNDS.map((r) => [r.slug, r]));
 
+// The 3rd-place playoff is its own bonus contest, not part of the bracket tree.
+// matchNumber 103 → slot 1 (base 102). Kept out of `matches` so the bracket and
+// match-picks game are unaffected; exposed as snapshot.thirdPlace.
+const THIRD_PLACE_SLUG = "3rd-place-match";
+const THIRD_META = { key: "3P", label: "Third-place playoff", base: 102 };
+
 // Feeders: for each knockout slot, which two slots of the previous round feed
 // it. Derived directly from ESPN's event names — note R16 feeders are NOT
 // sequential, so this map is load-bearing.
@@ -218,6 +224,7 @@ async function getPredictions(env) {
   const snap = (await readKv(env, "scores")) || {};
   const byId = {};
   for (const m of snap.matches || []) byId[String(m.id)] = m;
+  if (snap.thirdPlace) byId[String(snap.thirdPlace.id)] = snap.thirdPlace;
   const now = Date.now();
 
   const { results } = await env.DB.prepare(
@@ -248,7 +255,9 @@ async function submitPrediction(request, env) {
   if (home == null || away == null) return json({ error: "Enter both scores (0–20)." }, 400);
 
   const snap = (await readKv(env, "scores")) || {};
-  const m = (snap.matches || []).find((x) => String(x.id) === matchId);
+  const all = (snap.matches || []).slice();
+  if (snap.thirdPlace) all.push(snap.thirdPlace);
+  const m = all.find((x) => String(x.id) === matchId);
   if (!m) return json({ error: "Unknown match." }, 404);
   if (Date.now() >= Date.parse(m.date)) {
     return json({ error: "That match has already kicked off." }, 403);
@@ -307,6 +316,17 @@ async function refreshScores(env) {
 
   matches.sort((a, b) => a.matchNumber - b.matchNumber);
 
+  // Third-place playoff (bonus contest) — built separately from the bracket.
+  let thirdPlace = null;
+  const tpEvent = events.find((e) => ((e.season && e.season.slug) || "") === THIRD_PLACE_SLUG);
+  if (tpEvent) {
+    let num = KNOWN_MATCH_NUMBERS[String(tpEvent.id)];
+    if (!num) {
+      try { const r = await fetch(ESPN_CORE_COMP(tpEvent.id), { headers: UA }); num = (await r.json()).matchNumber; } catch (_) {}
+    }
+    if (num) thirdPlace = buildMatch(tpEvent, num, THIRD_META, teamMap);
+  }
+
   const r32 = matches.filter((m) => m.round === "R32");
   const bracketReady = r32.length === 16 && r32.every((m) => !m.home.placeholder && !m.away.placeholder);
   const bracketCutoff = r32.length ? r32.map((m) => m.date).sort()[0] : null;
@@ -328,6 +348,7 @@ async function refreshScores(env) {
     rounds: ROUNDS.map(({ key, label, points, count }) => ({ key, label, points, count })),
     feeders: FEEDERS,
     matches,
+    thirdPlace,
     teams: [...teamMap.values()].sort((a, b) => a.name.localeCompare(b.name)),
     bracketReady,
   };

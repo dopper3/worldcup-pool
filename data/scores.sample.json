@@ -950,6 +950,33 @@
       "winnerId": null
     }
   ],
+  "thirdPlace": {
+    "id": "760516",
+    "matchNumber": 103,
+    "round": "3P",
+    "roundLabel": "Third-place playoff",
+    "slot": 1,
+    "date": "2026-07-18T21:00Z",
+    "status": "pre",
+    "statusDetail": "Scheduled",
+    "home": {
+      "id": "5958",
+      "name": "Semifinal 1 Loser",
+      "abbr": "SF L1",
+      "flag": "",
+      "score": 0,
+      "placeholder": true
+    },
+    "away": {
+      "id": "5959",
+      "name": "Semifinal 2 Loser",
+      "abbr": "SF L2",
+      "flag": "",
+      "score": 0,
+      "placeholder": true
+    },
+    "winnerId": null
+  },
   "teams": [
     {
       "id": "203",

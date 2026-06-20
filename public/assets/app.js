@@ -7,7 +7,7 @@
 // and POSTs entries straight back. No Google Forms, no repo commits.
 
 // ---------- contest config ----------
-const FEES = { bracket: 20, predictions: 10 };
+const FEES = { bracket: 40, predictions: 10, thirdPlace: 5 };
 const ROUND_POINTS = { R32: 1, R16: 2, QF: 4, SF: 8, F: 16 };
 const ROUND_ORDER = ["R32", "R16", "QF", "SF", "F"];
 const ROUND_LABEL = { R32: "Round of 32", R16: "Round of 16", QF: "Quarterfinals", SF: "Semifinals", F: "Final" };
@@ -89,7 +89,9 @@ function indexSnapshot(snap) {
   SNAP = snap;
   MATCH_BY_NUM = {}; MATCH_BY_ID = {}; TEAM_BY_ID = {};
   FEEDERS = snap.feeders || {};
-  for (const m of snap.matches || []) {
+  const allMatches = (snap.matches || []).slice();
+  if (snap.thirdPlace) allMatches.push(snap.thirdPlace);
+  for (const m of allMatches) {
     MATCH_BY_NUM[m.matchNumber] = m;
     MATCH_BY_ID[String(m.id)] = m;
     for (const side of [m.home, m.away]) {
@@ -107,6 +109,7 @@ function matchOfSlot(round, slot) {
   const base = { R32: 72, R16: 88, QF: 96, SF: 100, F: 103 }[round];
   return MATCH_BY_NUM[base + slot];
 }
+const thirdPlaceId = () => (SNAP && SNAP.thirdPlace ? String(SNAP.thirdPlace.id) : null);
 
 // ===========================================================================
 // scoring
@@ -455,7 +458,8 @@ async function submitBracket() {
 function renderPredictionStandings(predData) {
   const root = document.getElementById("predictions-standings");
   root.innerHTML = "";
-  const entries = predData.entries || [];
+  const tpId = thirdPlaceId();
+  const entries = (predData.entries || []).filter((e) => String(e.matchId) !== tpId);
   const players = new Map();
   for (const e of entries) {
     const key = e.displayName.trim().toLowerCase();
@@ -472,6 +476,8 @@ function renderPredictionStandings(predData) {
     root.appendChild(el("div", { class: "empty" }, [
       "No match picks yet. Head to ", el("strong", {}, "Make match picks"), ".",
     ]));
+    const bonusEmpty = renderThirdPlaceBonus(predData);
+    if (bonusEmpty) root.appendChild(bonusEmpty);
     return;
   }
 
@@ -496,6 +502,59 @@ function renderPredictionStandings(predData) {
   }
   table.appendChild(tbody);
   root.appendChild(table);
+
+  const bonus = renderThirdPlaceBonus(predData);
+  if (bonus) root.appendChild(bonus);
+}
+
+function renderThirdPlaceBonus(predData) {
+  const tp = SNAP.thirdPlace;
+  if (!tp) return null;
+  const tpId = String(tp.id);
+  const entries = (predData.entries || []).filter((e) => String(e.matchId) === tpId);
+
+  const wrap = el("div", { class: "bonus-section" });
+  wrap.appendChild(el("h2", { class: "bonus-title" }, "Bonus — Third-place playoff"));
+  wrap.appendChild(el("p", { class: "hint" },
+    [`Predict the score of the 3rd-place playoff. Exact = 3 pts, right result = 1 pt. Winner takes all. `,
+      el("span", { class: "fee-tag" }, `$${FEES.thirdPlace} entry`)]));
+
+  // Show the actual matchup / result line if we have it.
+  if (!tp.home.placeholder || !tp.away.placeholder || tp.status !== "pre") {
+    const line = el("p", { class: "bonus-matchup" }, [
+      el("span", {}, tp.home.name),
+      tp.status === "post" ? el("strong", {}, ` ${tp.home.score ?? "–"}–${tp.away.score ?? "–"} `) : el("span", {}, " v "),
+      el("span", {}, tp.away.name),
+      el("span", { class: "muted" }, tp.status === "post" ? "  (Full time)" : tp.status === "in" ? "  (Live)" : `  ${fmtDate(tp.date)}`),
+    ]);
+    wrap.appendChild(line);
+  }
+
+  if (!entries.length) { wrap.appendChild(el("div", { class: "empty" }, "No 3rd-place picks yet.")); return wrap; }
+
+  const kicked = Date.now() >= Date.parse(tp.date);
+  if (!kicked) {
+    wrap.appendChild(el("p", { class: "precutoff-count" }, `${entries.length} pick${entries.length === 1 ? "" : "s"} in — hidden until kickoff`));
+    return wrap;
+  }
+
+  const rows = entries.map((e) => {
+    const s = scorePrediction({ home: e.home, away: e.away }, tp) || { points: 0, exact: false };
+    return { displayName: e.displayName, pick: e.home != null ? `${e.home}–${e.away}` : "—", points: s.points, exact: s.exact };
+  }).sort((a, b) => b.points - a.points || a.displayName.localeCompare(b.displayName));
+
+  const table = el("table", { class: "lb-table" });
+  table.appendChild(el("thead", {}, el("tr", {}, [
+    el("th", {}, "Player"), el("th", { class: "num" }, "Pick"), el("th", { class: "num" }, "Pts"),
+  ])));
+  const tbody = el("tbody");
+  for (const r of rows) tbody.appendChild(el("tr", {}, [
+    el("td", {}, r.displayName), el("td", { class: "num" }, r.pick),
+    el("td", { class: "num" }, String(r.points) + (r.exact ? " ✓" : "")),
+  ]));
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
 }
 
 // ===========================================================================
@@ -535,6 +594,13 @@ function renderPicksMaker(predData) {
     list.appendChild(drawPickRow(m, savedPreds));
   }
   root.appendChild(list);
+
+  if (SNAP.thirdPlace) {
+    const bonus = el("div", { class: "picks-list" });
+    bonus.appendChild(el("h3", { class: "picks-round-head" }, `Bonus — Third-place playoff ($${FEES.thirdPlace})`));
+    bonus.appendChild(drawPickRow(SNAP.thirdPlace, savedPreds));
+    root.appendChild(bonus);
+  }
 }
 
 function drawPickRow(m, savedPreds) {
@@ -708,6 +774,20 @@ function computeSplitResults(label, rankedEntries, fee) {
   return { label, entries: rankedEntries.map((t) => t.displayName), fee, pot, payouts, structure: "1st 70% / 2nd 30% / 3rd refund" };
 }
 
+function computeWinnerTakeAll(label, ranked, fee) {
+  const N = ranked.length;
+  const pot = N * fee;
+  if (!N) return { label, entries: [], fee, pot: 0, payouts: [], structure: "Winner takes all" };
+  const top = ranked[0].total;
+  const winners = top > 0 ? ranked.filter((r) => r.total === top) : [];
+  const payouts = [];
+  if (winners.length) {
+    const share = pot / winners.length;
+    winners.forEach((w) => payouts.push({ displayName: w.displayName, amount: share, role: winners.length > 1 ? "winner (tie)" : "winner" }));
+  }
+  return { label, entries: ranked.map((r) => r.displayName), fee, pot, payouts, structure: "Winner takes all" };
+}
+
 function getNameMap() { return lsGet(LS.nameMap, {}); }
 function resolvedName(n) { const m = getNameMap(); return m[(n || "").trim()] || n; }
 
@@ -754,9 +834,12 @@ function renderResults(bracketData, predData) {
     contests.push(computeSplitResults("Bracket", ranked, FEES.bracket));
   }
 
-  // Predictions contest.
+  const tpId = thirdPlaceId();
+
+  // Match-picks contest (excludes the 3rd-place bonus match).
   const predPlayers = new Map();
   for (const e of predData.entries || []) {
+    if (tpId && String(e.matchId) === tpId) continue;
     const key = e.displayName.trim().toLowerCase();
     if (!predPlayers.has(key)) predPlayers.set(key, { displayName: e.displayName, total: 0 });
     if (e.revealed && e.home != null) {
@@ -767,6 +850,24 @@ function renderResults(bracketData, predData) {
   if (predPlayers.size) {
     const ranked = [...predPlayers.values()].sort((a, b) => b.total - a.total);
     contests.push(computeSplitResults("Match picks", ranked, FEES.predictions));
+  }
+
+  // Third-place bonus contest (winner-take-all).
+  if (SNAP.thirdPlace && tpId) {
+    const tpPlayers = new Map();
+    for (const e of predData.entries || []) {
+      if (String(e.matchId) !== tpId) continue;
+      const key = e.displayName.trim().toLowerCase();
+      if (!tpPlayers.has(key)) tpPlayers.set(key, { displayName: e.displayName, total: 0 });
+      if (e.revealed && e.home != null) {
+        const s = scorePrediction({ home: e.home, away: e.away }, SNAP.thirdPlace);
+        if (s) tpPlayers.get(key).total += s.points;
+      }
+    }
+    if (tpPlayers.size) {
+      const ranked = [...tpPlayers.values()].sort((a, b) => b.total - a.total);
+      contests.push(computeWinnerTakeAll("Third place", ranked, FEES.thirdPlace));
+    }
   }
 
   root.appendChild(el("div", { class: "results-header" }, [

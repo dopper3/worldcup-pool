@@ -229,6 +229,11 @@ main { padding: 24px 0 60px; }
 .pick-status.success { color: var(--pitch); }
 .pick-locked-note { font-size: 12px; color: var(--muted); text-align: right; }
 
+/* ---------- Third-place bonus ---------- */
+.bonus-section { margin-top: 28px; }
+.bonus-title { font-family: var(--serif); color: var(--navy-mid); font-size: 20px; margin: 0 0 6px; padding-bottom: 6px; border-bottom: 2px solid var(--gold-bright); }
+.bonus-matchup { font-size: 14px; margin: 6px 0 12px; }
+
 /* ---------- Bracket tree (visual) ---------- */
 .tree-wrap { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
 .tree-col { min-width: 150px; flex: 1; }

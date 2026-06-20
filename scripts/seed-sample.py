@@ -81,6 +81,16 @@ def main():
             if s["id"] and not s["placeholder"]:
                 teams[s["id"]] = {"id": s["id"], "name": s["name"], "abbr": s["abbr"], "flag": s["flag"]}
     matches.sort(key=lambda m: m["matchNumber"])
+
+    # Third-place playoff (bonus contest), built separately.
+    third = None
+    tp = next((e for e in data.get("events", []) if (e.get("season") or {}).get("slug") == "3rd-place-match"), None)
+    if tp and KNOWN.get(str(tp["id"])):
+        third = build(tp, KNOWN[str(tp["id"])], ("3P", "Third-place playoff", "3rd-place-match", 0, 102, 1))
+        for s in (third["home"], third["away"]):
+            if s["id"] and not s["placeholder"]:
+                teams[s["id"]] = {"id": s["id"], "name": s["name"], "abbr": s["abbr"], "flag": s["flag"]}
+
     r32 = [m for m in matches if m["round"] == "R32"]
     ready = len(r32) == 16 and all(not m["home"]["placeholder"] and not m["away"]["placeholder"] for m in r32)
     cutoff = min((m["date"] for m in r32), default=None)
@@ -91,7 +101,7 @@ def main():
                        "complete": bool(matches) and all(m["status"] == "post" for m in matches),
                        "lastUpdated": "sample"},
         "rounds": [{"key": r[0], "label": r[1], "points": r[3], "count": r[5]} for r in ROUNDS],
-        "feeders": FEEDERS, "matches": matches,
+        "feeders": FEEDERS, "matches": matches, "thirdPlace": third,
         "teams": sorted(teams.values(), key=lambda t: t["name"]), "bracketReady": ready}
     OUT.write_text(json.dumps(snap, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Wrote {OUT.name}: {len(matches)} matches, {len(teams)} real teams, "

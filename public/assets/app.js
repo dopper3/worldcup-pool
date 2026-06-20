@@ -7,7 +7,7 @@
 // and POSTs entries straight back. No Google Forms, no repo commits.
 
 // ---------- contest config ----------
-const FEES = { bracket: 40, predictions: 10, thirdPlace: 5 };
+const FEES = { bracket: 40, predictions: 10, thirdPlace: 20 };
 const ROUND_POINTS = { R32: 1, R16: 2, QF: 4, SF: 8, F: 16 };
 const ROUND_ORDER = ["R32", "R16", "QF", "SF", "F"];
 const ROUND_LABEL = { R32: "Round of 32", R16: "Round of 16", QF: "Quarterfinals", SF: "Semifinals", F: "Final" };

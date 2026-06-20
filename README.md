@@ -41,7 +41,7 @@ result (W/D/L) only = **1 pt**. Each match locks at its own kickoff, and nobody
 can see anyone else's pick for a match until it kicks off. Predict as many or as
 few matches as you like.
 
-### Bonus — Third-place playoff · `$5`
+### Bonus — Third-place playoff · `$20`
 Predict the score of the 3rd-place playoff (the two losing semifinalists). Same
 scoring as match picks (exact = 3, right result = 1), **winner takes all** (ties
 split). Locks at that match's kickoff.

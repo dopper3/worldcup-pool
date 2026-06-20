@@ -116,7 +116,14 @@ exactly like the PGA pool.
 ## One-time deploy
 
 You need a free [Cloudflare account](https://dash.cloudflare.com/sign-up) and
-Node installed (for the `wrangler` CLI). ~10 minutes, all free tier.
+**Node.js** installed (npm/npx ship with it; that's what runs `wrangler`).
+~10 minutes, all free tier.
+
+**Windows:** if `npm` isn't recognized, Node isn't installed yet. Install it,
+then **open a fresh PowerShell window** (PATH only updates in new terminals):
+```powershell
+winget install -e --id OpenJS.NodeJS.LTS
+```
 
 ```bash
 # 1. Install the CLI and log in

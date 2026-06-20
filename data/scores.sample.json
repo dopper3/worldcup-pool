@@ -1,0 +1,968 @@
+{
+  "tournament": {
+    "name": "FIFA World Cup 2026",
+    "season": 2026,
+    "stage": "knockout",
+    "bracketReady": false,
+    "bracketCutoff": "2026-06-28T19:00Z",
+    "live": false,
+    "complete": false,
+    "lastUpdated": "sample"
+  },
+  "rounds": [
+    {
+      "key": "R32",
+      "label": "Round of 32",
+      "points": 1,
+      "count": 16
+    },
+    {
+      "key": "R16",
+      "label": "Round of 16",
+      "points": 2,
+      "count": 8
+    },
+    {
+      "key": "QF",
+      "label": "Quarterfinals",
+      "points": 4,
+      "count": 4
+    },
+    {
+      "key": "SF",
+      "label": "Semifinals",
+      "points": 8,
+      "count": 2
+    },
+    {
+      "key": "F",
+      "label": "Final",
+      "points": 16,
+      "count": 1
+    }
+  ],
+  "feeders": {
+    "R16": {
+      "1": [
+        5,
+        2
+      ],
+      "2": [
+        3,
+        1
+      ],
+      "3": [
+        6,
+        4
+      ],
+      "4": [
+        8,
+        7
+      ],
+      "5": [
+        12,
+        11
+      ],
+      "6": [
+        10,
+        9
+      ],
+      "7": [
+        16,
+        14
+      ],
+      "8": [
+        15,
+        13
+      ]
+    },
+    "QF": {
+      "1": [
+        2,
+        1
+      ],
+      "2": [
+        6,
+        5
+      ],
+      "3": [
+        4,
+        3
+      ],
+      "4": [
+        8,
+        7
+      ]
+    },
+    "SF": {
+      "1": [
+        2,
+        1
+      ],
+      "2": [
+        4,
+        3
+      ]
+    },
+    "F": {
+      "1": [
+        2,
+        1
+      ]
+    }
+  },
+  "matches": [
+    {
+      "id": "760486",
+      "matchNumber": 73,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 1,
+      "date": "2026-06-28T19:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5926",
+        "name": "Group A 2nd Place",
+        "abbr": "2A",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "5924",
+        "name": "Group B 2nd Place",
+        "abbr": "2B",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760489",
+      "matchNumber": 74,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 2,
+      "date": "2026-06-29T20:30Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5931",
+        "name": "Group E Winner",
+        "abbr": "1E",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131541",
+        "name": "Third Place Group A/B/C/D/F",
+        "abbr": "3RD",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760488",
+      "matchNumber": 75,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 3,
+      "date": "2026-06-30T01:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5933",
+        "name": "Group F Winner",
+        "abbr": "1F",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "5930",
+        "name": "Group C 2nd Place",
+        "abbr": "2C",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760487",
+      "matchNumber": 76,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 4,
+      "date": "2026-06-29T17:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5927",
+        "name": "Group C Winner",
+        "abbr": "1C",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "5934",
+        "name": "Group F 2nd Place",
+        "abbr": "2F",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760492",
+      "matchNumber": 77,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 5,
+      "date": "2026-06-30T21:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131505",
+        "name": "Group I Winner",
+        "abbr": "1I",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131544",
+        "name": "Third Place Group C/D/F/G/H",
+        "abbr": "3RD",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760490",
+      "matchNumber": 78,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 6,
+      "date": "2026-06-30T17:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5932",
+        "name": "Group E 2nd Place",
+        "abbr": "2E",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131501",
+        "name": "Group I 2nd Place",
+        "abbr": "2I",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760491",
+      "matchNumber": 79,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 7,
+      "date": "2026-07-01T01:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "203",
+        "name": "Mexico",
+        "abbr": "MEX",
+        "flag": "https://a.espncdn.com/i/teamlogos/countries/500/mex.png",
+        "score": 0,
+        "placeholder": false
+      },
+      "away": {
+        "id": "131545",
+        "name": "Third Place Group C/E/F/H/I",
+        "abbr": "3RD",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760495",
+      "matchNumber": 80,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 8,
+      "date": "2026-07-01T16:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131508",
+        "name": "Group L Winner",
+        "abbr": "1L",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131548",
+        "name": "Third Place Group E/H/I/J/K",
+        "abbr": "3RD",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760494",
+      "matchNumber": 81,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 9,
+      "date": "2026-07-02T00:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "660",
+        "name": "United States",
+        "abbr": "USA",
+        "flag": "https://a.espncdn.com/i/teamlogos/countries/500/usa.png",
+        "score": 0,
+        "placeholder": false
+      },
+      "away": {
+        "id": "131543",
+        "name": "Third Place Group B/E/F/I/J",
+        "abbr": "3RD",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760493",
+      "matchNumber": 82,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 10,
+      "date": "2026-07-01T20:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5935",
+        "name": "Group G Winner",
+        "abbr": "1G",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131542",
+        "name": "Third Place Group A/E/H/I/J",
+        "abbr": "3RD",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760496",
+      "matchNumber": 83,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 11,
+      "date": "2026-07-02T23:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131503",
+        "name": "Group K 2nd Place",
+        "abbr": "2K",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131504",
+        "name": "Group L 2nd Place",
+        "abbr": "2L",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760497",
+      "matchNumber": 84,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 12,
+      "date": "2026-07-02T19:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5937",
+        "name": "Group H Winner",
+        "abbr": "1H",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131502",
+        "name": "Group J 2nd Place",
+        "abbr": "2J",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760498",
+      "matchNumber": 85,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 13,
+      "date": "2026-07-03T03:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5925",
+        "name": "Group B Winner",
+        "abbr": "1B",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131547",
+        "name": "Third Place Group E/F/G/I/J",
+        "abbr": "3RD",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760500",
+      "matchNumber": 86,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 14,
+      "date": "2026-07-03T22:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131506",
+        "name": "Group J Winner",
+        "abbr": "1J",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "5938",
+        "name": "Group H 2nd Place",
+        "abbr": "2H",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760501",
+      "matchNumber": 87,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 15,
+      "date": "2026-07-04T01:30Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131507",
+        "name": "Group K Winner",
+        "abbr": "1K",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131546",
+        "name": "Third Place Group D/E/I/J/L",
+        "abbr": "3RD",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760499",
+      "matchNumber": 88,
+      "round": "R32",
+      "roundLabel": "Round of 32",
+      "slot": 16,
+      "date": "2026-07-03T18:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5928",
+        "name": "Group D 2nd Place",
+        "abbr": "2D",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "5936",
+        "name": "Group G 2nd Place",
+        "abbr": "2G",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760503",
+      "matchNumber": 89,
+      "round": "R16",
+      "roundLabel": "Round of 16",
+      "slot": 1,
+      "date": "2026-07-04T21:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131526",
+        "name": "Round of 32 2 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131529",
+        "name": "Round of 32 5 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760502",
+      "matchNumber": 90,
+      "round": "R16",
+      "roundLabel": "Round of 16",
+      "slot": 2,
+      "date": "2026-07-04T17:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131525",
+        "name": "Round of 32 1 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131527",
+        "name": "Round of 32 3 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760504",
+      "matchNumber": 91,
+      "round": "R16",
+      "roundLabel": "Round of 16",
+      "slot": 3,
+      "date": "2026-07-05T20:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131528",
+        "name": "Round of 32 4 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131530",
+        "name": "Round of 32 6 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760505",
+      "matchNumber": 92,
+      "round": "R16",
+      "roundLabel": "Round of 16",
+      "slot": 4,
+      "date": "2026-07-06T00:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131531",
+        "name": "Round of 32 7 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131532",
+        "name": "Round of 32 8 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760506",
+      "matchNumber": 93,
+      "round": "R16",
+      "roundLabel": "Round of 16",
+      "slot": 5,
+      "date": "2026-07-06T19:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131535",
+        "name": "Round of 32 11 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131536",
+        "name": "Round of 32 12 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760507",
+      "matchNumber": 94,
+      "round": "R16",
+      "roundLabel": "Round of 16",
+      "slot": 6,
+      "date": "2026-07-07T00:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131533",
+        "name": "Round of 32 9 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131534",
+        "name": "Round of 32 10 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760509",
+      "matchNumber": 95,
+      "round": "R16",
+      "roundLabel": "Round of 16",
+      "slot": 7,
+      "date": "2026-07-07T16:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131538",
+        "name": "Round of 32 14 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131540",
+        "name": "Round of 32 16 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760508",
+      "matchNumber": 96,
+      "round": "R16",
+      "roundLabel": "Round of 16",
+      "slot": 8,
+      "date": "2026-07-07T20:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "131537",
+        "name": "Round of 32 13 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "131539",
+        "name": "Round of 32 15 Winner",
+        "abbr": "RD32",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760510",
+      "matchNumber": 97,
+      "round": "QF",
+      "roundLabel": "Quarterfinals",
+      "slot": 1,
+      "date": "2026-07-09T20:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "19282",
+        "name": "Round of 16 1 Winner",
+        "abbr": "RD16 W1",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "19283",
+        "name": "Round of 16 2 Winner",
+        "abbr": "RD16 W2",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760511",
+      "matchNumber": 98,
+      "round": "QF",
+      "roundLabel": "Quarterfinals",
+      "slot": 2,
+      "date": "2026-07-10T19:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "19278",
+        "name": "Round of 16 5 Winner",
+        "abbr": "RD16 W5",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "19279",
+        "name": "Round of 16 6 Winner",
+        "abbr": "RD16 W6",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760512",
+      "matchNumber": 99,
+      "round": "QF",
+      "roundLabel": "Quarterfinals",
+      "slot": 3,
+      "date": "2026-07-11T21:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "19284",
+        "name": "Round of 16 3 Winner",
+        "abbr": "RD16 W3",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "19285",
+        "name": "Round of 16 4 Winner",
+        "abbr": "RD16 W4",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760513",
+      "matchNumber": 100,
+      "round": "QF",
+      "roundLabel": "Quarterfinals",
+      "slot": 4,
+      "date": "2026-07-12T01:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "19280",
+        "name": "Round of 16 7 Winner",
+        "abbr": "RD16 W7",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "19281",
+        "name": "Round of 16 8 Winner",
+        "abbr": "RD16 W8",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760514",
+      "matchNumber": 101,
+      "round": "SF",
+      "roundLabel": "Semifinals",
+      "slot": 1,
+      "date": "2026-07-14T19:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "17631",
+        "name": "Quarterfinal 1 Winner",
+        "abbr": "QFW1",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "17629",
+        "name": "Quarterfinal 2 Winner",
+        "abbr": "QFW2",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760515",
+      "matchNumber": 102,
+      "round": "SF",
+      "roundLabel": "Semifinals",
+      "slot": 2,
+      "date": "2026-07-15T19:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "17630",
+        "name": "Quarterfinal 3 Winner",
+        "abbr": "QFW3",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "17632",
+        "name": "Quarterfinal 4 Winner",
+        "abbr": "QW4",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    },
+    {
+      "id": "760517",
+      "matchNumber": 104,
+      "round": "F",
+      "roundLabel": "Final",
+      "slot": 1,
+      "date": "2026-07-19T19:00Z",
+      "status": "pre",
+      "statusDetail": "Scheduled",
+      "home": {
+        "id": "5960",
+        "name": "Semifinal 1 Winner",
+        "abbr": "SFW1",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "away": {
+        "id": "5961",
+        "name": "Semifinal 2 Winner",
+        "abbr": "SFW2",
+        "flag": "",
+        "score": 0,
+        "placeholder": true
+      },
+      "winnerId": null
+    }
+  ],
+  "teams": [
+    {
+      "id": "203",
+      "name": "Mexico",
+      "abbr": "MEX",
+      "flag": "https://a.espncdn.com/i/teamlogos/countries/500/mex.png"
+    },
+    {
+      "id": "660",
+      "name": "United States",
+      "abbr": "USA",
+      "flag": "https://a.espncdn.com/i/teamlogos/countries/500/usa.png"
+    }
+  ],
+  "bracketReady": false
+}

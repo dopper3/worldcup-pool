@@ -1,0 +1,29 @@
+# Nettzone World Cup Pool — Cloudflare Worker config.
+#
+# One Worker serves the static site, the /api/* endpoints, and runs the
+# scheduled ESPN score fetch. See README.md for the one-time deploy steps.
+
+name = "wc-pool"
+main = "src/worker.js"
+compatibility_date = "2025-05-01"
+
+# Serve everything in ./public as static assets. Requests that don't match a
+# file fall through to the Worker's fetch handler (which owns /api/*).
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# D1 database binding. Replace database_id with the id printed by
+#   wrangler d1 create wc-pool
+[[d1_databases]]
+binding = "DB"
+database_name = "wc-pool"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# Refresh scores every 3 minutes. Cron is UTC; this runs year-round but the
+# fetch is cheap and a no-op outside tournament time.
+[triggers]
+crons = ["*/3 * * * *"]
+
+[observability]
+enabled = true

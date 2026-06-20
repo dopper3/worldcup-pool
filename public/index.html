@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nettzone World Cup Pool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+SC:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/style.css?v=1" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <div class="header-left">
+          <svg class="flagmark" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="24" cy="24" r="21" fill="none" stroke="#ffd34d" stroke-width="2.5" />
+            <path d="M24 7 L29 20 L43 20 L32 29 L36 43 L24 34 L12 43 L16 29 L5 20 L19 20 Z" fill="#ffd34d" opacity="0.18" />
+            <path d="M24 11 l3.4 7 7.6 .8 -5.7 5.1 1.7 7.5 -6.9 -3.9 -6.9 3.9 1.7 -7.5 -5.7 -5.1 7.6 -.8 z" fill="#ffd34d" />
+          </svg>
+          <div>
+            <h1>Nettzone World Cup Pool</h1>
+            <p id="tournament-status" class="status">Loading…</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs wrap">
+      <button class="tab active" data-tab="bracket">Bracket standings</button>
+      <button class="tab" data-tab="make-bracket">Make your bracket</button>
+      <button class="tab" data-tab="predictions">Match picks</button>
+      <button class="tab" data-tab="make-picks">Make match picks</button>
+      <button class="tab" data-tab="tree">Bracket</button>
+      <button class="tab" data-tab="results">Results</button>
+      <button class="tab" data-tab="teams">Teams</button>
+      <button class="tab" data-tab="rules">Rules</button>
+    </nav>
+
+    <main class="wrap">
+      <p id="error" class="error" hidden></p>
+
+      <section id="tab-bracket" class="tab-panel active">
+        <p id="bracket-hint" class="hint">
+          Predict the winner of every knockout match. Points escalate each round —
+          <strong>R32 = 1, R16 = 2, QF = 4, SF = 8, Final = 16</strong> per correct pick.
+          <span class="fee-tag">$20 entry</span>
+        </p>
+        <div id="bracket-standings"></div>
+      </section>
+
+      <section id="tab-make-bracket" class="tab-panel">
+        <div id="bracket-picker"></div>
+      </section>
+
+      <section id="tab-predictions" class="tab-panel">
+        <p class="hint">
+          Side game: predict the score of each knockout match. <strong>Exact score = 3 pts</strong>,
+          correct result (win/draw/loss) = <strong>1 pt</strong>. Pick anytime before kickoff.
+          <span class="fee-tag">$10 entry</span>
+        </p>
+        <div id="predictions-standings"></div>
+      </section>
+
+      <section id="tab-make-picks" class="tab-panel">
+        <div id="picks-maker"></div>
+      </section>
+
+      <section id="tab-tree" class="tab-panel">
+        <div id="bracket-tree"></div>
+      </section>
+
+      <section id="tab-results" class="tab-panel">
+        <div id="results"></div>
+      </section>
+
+      <section id="tab-teams" class="tab-panel">
+        <input id="teams-search" type="search" placeholder="Search teams…" autocomplete="off" />
+        <div id="teams-list"></div>
+      </section>
+
+      <section id="tab-rules" class="tab-panel">
+        <h2>The format</h2>
+        <p class="rules-intro">
+          Two contests, knockout stage only (Round of 32 onward). Enter one, the
+          other, or both.
+        </p>
+
+        <h2>Contest 1 — Bracket <span class="fee-tag">$20</span></h2>
+        <ul>
+          <li>Fill in the whole knockout bracket: pick the winner of every match from the Round of 32 to the Final.</li>
+          <li>You score points for each correct winner, escalating by round:
+            <strong>R32 = 1</strong>, <strong>R16 = 2</strong>, <strong>QF = 4</strong>,
+            <strong>SF = 8</strong>, <strong>Final = 16</strong>. Max 80.</li>
+          <li>A correct pick only counts if that team actually wins in that round — so a busted pick takes its branch down with it.</li>
+          <li><strong>Bonus +5:</strong> exact final scoreline.</li>
+          <li><strong>Bonus +5:</strong> correct Golden Boot (tournament top scorer) — settled at the end.</li>
+          <li><strong>Locks</strong> at the first Round of 32 kickoff. Resubmit any time before then with the same display name to replace your bracket.</li>
+        </ul>
+
+        <h2>Contest 2 — Match picks <span class="fee-tag">$10</span></h2>
+        <ul>
+          <li>Predict the score of each knockout match.</li>
+          <li><strong>Exact score = 3 pts.</strong> Correct result only (W/D/L) = <strong>1 pt</strong>.</li>
+          <li>Scores are taken at the final whistle (after extra time; penalty shootouts don't change the goal tally).</li>
+          <li>Each match locks at its own kickoff. Predict as many or as few as you like; others' picks stay hidden until kickoff.</li>
+        </ul>
+
+        <h2>How to enter</h2>
+        <ol>
+          <li>Go to <a href="#" data-jump="make-bracket">Make your bracket</a> and/or <a href="#" data-jump="make-picks">Make match picks</a>.</li>
+          <li>Type your display name, make your picks, hit submit. That's it — no Google Form, your entry lands instantly.</li>
+          <li>Use the <strong>same display name</strong> to update; your latest submission replaces the old one.</li>
+        </ol>
+
+        <h2>Payouts</h2>
+        <ul>
+          <li><strong>Bracket:</strong> 1st 70% / 2nd 30%, 3rd gets their entry back (winner-take-all under 3 entries).</li>
+          <li><strong>Match picks:</strong> 1st 70% / 2nd 30%, 3rd gets their entry back.</li>
+          <li>The <a href="#" data-jump="results">Results</a> tab shows live projected payouts and the minimum set of transfers to settle up.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <p>Scores refresh automatically every few minutes from ESPN. No Google Forms, no spreadsheets.</p>
+      <p id="last-updated"></p>
+    </footer>
+
+    <script src="/assets/app.js?v=1"></script>
+  </body>
+</html>

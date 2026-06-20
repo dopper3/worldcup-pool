@@ -1,0 +1,16 @@
+{
+  "name": "wc-pool",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nettzone World Cup 2026 knockout pool — Cloudflare Worker + D1.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute wc-pool --file=schema.sql --remote",
+    "db:init:local": "wrangler d1 execute wc-pool --file=schema.sql --local",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

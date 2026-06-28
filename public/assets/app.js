@@ -7,7 +7,8 @@
 // and POSTs entries straight back. No Google Forms, no repo commits.
 
 // ---------- contest config ----------
-const FEES = { bracket: 40, predictions: 10, thirdPlace: 20 };
+const FEES = { bracket: 40, predictions: 10, thirdPlace: 20, playerToScore: 5 };
+const PLAYER_SCORE_POINTS = 2; // points if your picked player scores in the game
 const ROUND_POINTS = { R32: 1, R16: 2, QF: 4, SF: 8, F: 16 };
 const ROUND_ORDER = ["R32", "R16", "QF", "SF", "F"];
 const ROUND_LABEL = { R32: "Round of 32", R16: "Round of 16", QF: "Quarterfinals", SF: "Semifinals", F: "Final" };
@@ -18,10 +19,9 @@ const RESULT_POINTS = 1;
 
 // ---------- local persistence (so a user sees their own hidden picks) ----------
 const LS = {
-  name: "wc:name",
   bracket: "wc:bracket",
   preds: "wc:preds",
-  nameMap: "wc:nameMap",
+  playerPicks: "wc:playerPicks",
   tab: "wc:tab",
 };
 const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -47,7 +47,7 @@ function el(tag, props = {}, children = []) {
 }
 
 async function api(path) {
-  const r = await fetch(path, { cache: "no-store" });
+  const r = await fetch(path, { cache: "no-store", credentials: "same-origin" });
   if (!r.ok) throw new Error(`${path} (${r.status})`);
   return r.json();
 }
@@ -55,6 +55,7 @@ async function apiPost(path, body) {
   const r = await fetch(path, {
     method: "POST",
     headers: { "content-type": "application/json" },
+    credentials: "same-origin",
     body: JSON.stringify(body),
   });
   const data = await r.json().catch(() => ({}));
@@ -84,6 +85,11 @@ let MATCH_BY_NUM = {}; // matchNumber -> match
 let MATCH_BY_ID = {};  // id -> match
 let TEAM_BY_ID = {};   // id -> {id,name,abbr,flag}
 let FEEDERS = {};
+let ME = null;         // logged-in user {id, username, isAdmin} or null
+let PLAYER_GAMES = []; // snap.playerGames (rolling slate for the player-to-score contest)
+let GAME_BY_ID = {};   // playerGame id -> game
+let ROSTERS = {};      // teamId -> { players: [{id,name}] }
+let PP_DATA = null;    // last /api/player-picks payload (for re-rendering the maker in place)
 
 function indexSnapshot(snap) {
   SNAP = snap;
@@ -101,6 +107,17 @@ function indexSnapshot(snap) {
     }
   }
   for (const t of snap.teams || []) TEAM_BY_ID[String(t.id)] = t;
+
+  PLAYER_GAMES = (snap.playerGames || []).slice().sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  GAME_BY_ID = {};
+  for (const g of PLAYER_GAMES) {
+    GAME_BY_ID[String(g.id)] = g;
+    for (const side of [g.home, g.away]) {
+      if (side && side.id && !side.placeholder && !TEAM_BY_ID[String(side.id)]) {
+        TEAM_BY_ID[String(side.id)] = { id: String(side.id), name: side.name, abbr: side.abbr, flag: side.flag };
+      }
+    }
+  }
 }
 const team = (id) => TEAM_BY_ID[String(id)] || null;
 const teamName = (id) => (team(id) ? team(id).name : "—");
@@ -156,6 +173,46 @@ function scorePrediction(pred, match) {
   return { points: 0, exact: false };
 }
 
+// Accent-insensitive name key, for the free-text grading fallback.
+function normPlayer(s) {
+  return (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toLowerCase().replace(/[^a-z]+/g, " ").trim();
+}
+
+// A pick's stable identity within a user (mirrors the Worker): athlete id when
+// known, else a normalized name. Used for per-pick overrides + uniqueness.
+function playerKeyOf(playerId, playerName) {
+  const id = String(playerId || "").trim();
+  if (id) return "id:" + id;
+  return "nm:" + (playerName || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+// Grade a player-to-score pick. Auto: did the picked player score (by athlete
+// id, with an accent-insensitive name fallback)? Admin override wins if set.
+// Returns { graded, hit, points, pending }.
+function scorePlayerPick(pick, game, overrides) {
+  const pk = pick.playerKey || playerKeyOf(pick.playerId, pick.playerName);
+  const key = `${pick.userId}:${pick.matchId}:${pk}`;
+  if (overrides && Object.prototype.hasOwnProperty.call(overrides, key)) {
+    const hit = !!overrides[key];
+    return { graded: true, hit, points: hit ? PLAYER_SCORE_POINTS : 0, pending: false, manual: true };
+  }
+  const live = game && (game.status === "post" || game.status === "in");
+  if (!live || pick.playerId == null) {
+    return { graded: false, hit: false, points: 0, pending: !!game && game.status !== "post" };
+  }
+  const scorers = game.scorers || [];
+  let hit = scorers.some((s) => String(s.id) === String(pick.playerId));
+  if (!hit && pick.playerName) {
+    const pn = normPlayer(pick.playerName);
+    hit = !!pn && scorers.some((s) => normPlayer(s.name) === pn);
+  }
+  // A scored goal is locked in even mid-game; a miss is only final at full time.
+  const graded = hit || game.status === "post";
+  return { graded, hit, points: hit ? PLAYER_SCORE_POINTS : 0, pending: !graded };
+}
+
 // ===========================================================================
 // header
 // ===========================================================================
@@ -171,6 +228,71 @@ function renderHeader() {
     document.getElementById("last-updated").textContent =
       `Scores last refreshed ${new Date(t.lastUpdated).toLocaleString()}`;
   }
+}
+
+// ===========================================================================
+// auth bar (sign up / log in / log out)
+// ===========================================================================
+function renderAuthBar() {
+  const root = document.getElementById("auth-bar");
+  if (!root) return;
+  root.innerHTML = "";
+
+  if (ME && ME.username) {
+    const bar = el("div", { class: "auth-signed" });
+    bar.appendChild(el("span", { class: "auth-who" }, [
+      "Signed in as ", el("strong", {}, ME.username),
+      ME.isAdmin ? el("span", { class: "auth-admin" }, " admin") : null,
+    ]));
+    bar.appendChild(el("button", { type: "button", class: "auth-btn ghost", onclick: doLogout }, "Log out"));
+    root.appendChild(bar);
+    return;
+  }
+
+  const form = el("form", { class: "auth-form", id: "auth-form" });
+  form.appendChild(el("span", { class: "auth-lead" }, "Sign in to make picks:"));
+  const u = el("input", { id: "auth-user", type: "text", placeholder: "Username", autocomplete: "username", maxlength: "30" });
+  const p = el("input", { id: "auth-pass", type: "password", placeholder: "Password", autocomplete: "current-password" });
+  form.appendChild(u);
+  form.appendChild(p);
+  form.appendChild(el("button", { type: "submit", class: "auth-btn" }, "Log in"));
+  form.appendChild(el("button", { type: "button", class: "auth-btn ghost", onclick: () => doAuth("/api/register") }, "Create account"));
+  form.appendChild(el("span", { id: "auth-status", class: "auth-status" }, ""));
+  form.addEventListener("submit", (e) => { e.preventDefault(); doAuth("/api/login"); });
+  root.appendChild(form);
+}
+
+async function doAuth(path) {
+  const username = (document.getElementById("auth-user") || {}).value || "";
+  const password = (document.getElementById("auth-pass") || {}).value || "";
+  const status = document.getElementById("auth-status");
+  if (!username.trim() || !password) {
+    if (status) { status.textContent = "Enter a username and password."; status.className = "auth-status error"; }
+    return;
+  }
+  try {
+    await apiPost(path, { username: username.trim(), password });
+    location.reload(); // re-bootstrap everything as the signed-in user
+  } catch (e) {
+    if (status) { status.textContent = e.message; status.className = "auth-status error"; }
+  }
+}
+async function doLogout() {
+  try { await apiPost("/api/logout", {}); } catch {}
+  location.reload();
+}
+function focusAuth() {
+  const bar = document.getElementById("auth-bar");
+  if (bar) bar.scrollIntoView({ behavior: "smooth", block: "center" });
+  const u = document.getElementById("auth-user");
+  if (u) u.focus();
+}
+function signInCard(action) {
+  const card = el("div", { class: "picker-closed" });
+  card.appendChild(el("h2", { class: "picker-closed-title" }, "Sign in to " + action));
+  card.appendChild(el("p", { class: "picker-closed-body" }, "You need an account so your picks, points, and fees stay tied to you across every contest."));
+  card.appendChild(el("button", { type: "button", class: "picker-submit", onclick: focusAuth }, "Sign in or create an account"));
+  return card;
 }
 
 // ===========================================================================
@@ -304,6 +426,10 @@ function renderBracketPicker() {
       "The Round of 32 matchups are decided when the group stage ends. This picker opens automatically once all 16 matchups are known — check back then."));
     return;
   }
+  if (!ME || !ME.username) {
+    root.appendChild(signInCard("make your bracket"));
+    return;
+  }
 
   const saved = loadSavedBracket();
   sanitizePicks();
@@ -311,15 +437,8 @@ function renderBracketPicker() {
   const header = el("div", { class: "picker-intro" });
   header.appendChild(el("h2", {}, "Make your bracket"));
   header.appendChild(el("p", { class: "hint" },
-    `Pick a winner in every match, all the way to the trophy. Locks ${fmtDate(t.bracketCutoff)}.`));
+    `Picking as ${ME.username}. Pick a winner in every match, all the way to the trophy. Locks ${fmtDate(t.bracketCutoff)}.`));
   root.appendChild(header);
-
-  const nameWrap = el("div", { class: "picker-form" });
-  nameWrap.appendChild(el("label", { class: "picker-label", for: "bk-name" }, "Your display name"));
-  const nameInput = el("input", { id: "bk-name", type: "text", placeholder: "e.g. Pat M.", maxlength: "40", autocomplete: "off" });
-  nameInput.value = (saved && saved.displayName) || lsGetStr(LS.name);
-  nameWrap.appendChild(nameInput);
-  root.appendChild(nameWrap);
 
   const rounds = el("div", { class: "bracket-rounds" });
   root.appendChild(rounds);
@@ -436,16 +555,14 @@ function buildPicksPayload() {
 }
 
 async function submitBracket() {
-  const name = document.getElementById("bk-name").value.trim();
-  if (!name) return flash("bk-status", "Enter a display name first.", "error");
+  if (!ME || !ME.username) return flash("bk-status", "Sign in first.", "error");
   if (filledSlots() !== totalSlots()) {
     return flash("bk-status", `Pick a winner in all ${totalSlots()} matches — you have ${filledSlots()}.`, "error");
   }
   const picks = buildPicksPayload();
   try {
-    await apiPost("/api/bracket", { displayName: name, picks });
-    lsSetStr(LS.name, name);
-    lsSet(LS.bracket, { displayName: name, ...picks });
+    await apiPost("/api/bracket", { picks });
+    lsSet(LS.bracket, { ...picks });
     flash("bk-status", "Bracket submitted! 🏆 Edit any time before kickoff.", "success");
   } catch (e) {
     flash("bk-status", e.message, "error");
@@ -571,17 +688,14 @@ function renderPicksMaker(predData) {
     return;
   }
 
+  if (!ME || !ME.username) {
+    root.appendChild(signInCard("make match picks"));
+    return;
+  }
+
   root.appendChild(el("h2", { class: "picker-intro-h" }, "Make match picks"));
   root.appendChild(el("p", { class: "hint" },
-    "Predict the final score of any knockout match. Exact = 3 pts, right result = 1 pt. Locks at kickoff."));
-
-  const nameWrap = el("div", { class: "picker-form" });
-  nameWrap.appendChild(el("label", { class: "picker-label", for: "pk-name" }, "Your display name"));
-  const nameInput = el("input", { id: "pk-name", type: "text", placeholder: "e.g. Pat M.", maxlength: "40", autocomplete: "off" });
-  nameInput.value = lsGetStr(LS.name);
-  nameInput.addEventListener("change", () => lsSetStr(LS.name, nameInput.value.trim()));
-  nameWrap.appendChild(nameInput);
-  root.appendChild(nameWrap);
+    `Picking as ${ME.username}. Predict the final score of any knockout match. Exact = 3 pts, right result = 1 pt. Locks at kickoff.`));
 
   const savedPreds = lsGet(LS.preds, {});
   const list = el("div", { class: "picks-list" });
@@ -655,17 +769,286 @@ function sideChip(side, m, which) {
 }
 
 async function savePrediction(m, hInput, aInput, statusEl) {
-  const name = document.getElementById("pk-name").value.trim();
-  if (!name) { statusEl.textContent = "Enter a name first"; statusEl.className = "pick-status error"; return; }
+  if (!ME || !ME.username) { statusEl.textContent = "Sign in first"; statusEl.className = "pick-status error"; return; }
   const home = hInput.value, away = aInput.value;
   if (home === "" || away === "") { statusEl.textContent = "Enter both"; statusEl.className = "pick-status error"; return; }
   try {
-    await apiPost("/api/prediction", { displayName: name, matchId: m.id, home: Number(home), away: Number(away) });
-    lsSetStr(LS.name, name);
+    await apiPost("/api/prediction", { matchId: m.id, home: Number(home), away: Number(away) });
     const preds = lsGet(LS.preds, {});
     preds[String(m.id)] = { home: Number(home), away: Number(away) };
     lsSet(LS.preds, preds);
     statusEl.textContent = "Saved ✓"; statusEl.className = "pick-status success";
+  } catch (e) {
+    statusEl.textContent = e.message; statusEl.className = "pick-status error";
+  }
+}
+
+// ===========================================================================
+// player-to-score contest
+// ===========================================================================
+function rosterFor(game) {
+  const out = [];
+  for (const side of [game.home, game.away]) {
+    const r = ROSTERS[String(side.id)];
+    if (r && r.players) for (const p of r.players) out.push({ id: String(p.id), name: p.name, team: side.abbr || side.name });
+  }
+  return out;
+}
+function findPlayerId(game, typed) {
+  const list = rosterFor(game);
+  const t = (typed || "").trim();
+  let m = list.find((p) => p.name === t);
+  if (!m) { const n = normPlayer(t); m = n && list.find((p) => normPlayer(p.name) === n); }
+  return m ? m.id : "";
+}
+const gameKicked = (g) => Date.now() >= Date.parse(g.date);
+
+// ---- standings ----
+function renderPlayerStandings(ppData) {
+  const root = document.getElementById("player-standings");
+  if (!root) return;
+  root.innerHTML = "";
+  const entries = ppData.entries || [];
+  const overrides = ppData.overrides || {};
+
+  const players = new Map();
+  for (const e of entries) {
+    const key = (e.displayName || "").trim().toLowerCase();
+    if (!players.has(key)) players.set(key, { displayName: e.displayName, made: 0, hits: 0, points: 0 });
+    const p = players.get(key);
+    p.made++;
+    if (!e.revealed || e.playerId == null) continue;
+    const s = scorePlayerPick(e, GAME_BY_ID[String(e.matchId)], overrides);
+    if (s.hit) { p.hits++; p.points += s.points; }
+  }
+
+  if (!players.size) {
+    root.appendChild(el("div", { class: "empty" }, [
+      "No player picks yet. Head to ", el("strong", {}, "Pick a scorer"), ".",
+    ]));
+    if (ME && ME.isAdmin) root.appendChild(adminGradePanel(ppData));
+    return;
+  }
+
+  const rows = [...players.values()].sort((a, b) => b.points - a.points || b.hits - a.hits || a.displayName.localeCompare(b.displayName));
+  let lastTotal = null, lastRank = 0;
+  rows.forEach((r, i) => { if (r.points !== lastTotal) { lastRank = i + 1; lastTotal = r.points; } r.rank = lastRank; });
+
+  const table = el("table", { class: "lb-table" });
+  table.appendChild(el("thead", {}, el("tr", {}, [
+    el("th", { class: "pos" }, "#"), el("th", {}, "Player"),
+    el("th", { class: "num" }, "Pts"), el("th", { class: "num" }, "Scored"), el("th", { class: "num" }, "Picks"),
+  ])));
+  const tbody = el("tbody");
+  for (const r of rows) {
+    tbody.appendChild(el("tr", {}, [
+      el("td", { class: "pos" }, String(r.rank)),
+      el("td", {}, r.displayName),
+      el("td", { class: "num" }, String(r.points)),
+      el("td", { class: "num" }, `${r.hits}/${r.made}`),
+      el("td", { class: "num" }, String(r.made)),
+    ]));
+  }
+  table.appendChild(tbody);
+  root.appendChild(table);
+  if (ME && ME.isAdmin) root.appendChild(adminGradePanel(ppData));
+}
+
+// Admin-only manual override: list revealed picks on kicked-off games with their
+// auto verdict and Hit / Miss / Auto buttons (the "manual fallback").
+function adminGradePanel(ppData) {
+  const overrides = ppData.overrides || {};
+  const details = el("details", { class: "admin-grade" });
+  const summary = document.createElement("summary");
+  summary.className = "results-section-title collapsible-title";
+  summary.textContent = "Admin — grade player picks";
+  details.appendChild(summary);
+  details.appendChild(el("p", { class: "hint" }, "Override auto-grading when the feed can't resolve a scorer. Auto = follow the live feed."));
+
+  const revealed = (ppData.entries || []).filter((e) => e.revealed && e.playerId != null);
+  if (!revealed.length) { details.appendChild(el("p", { class: "hint" }, "No picks to grade yet.")); return details; }
+
+  const table = el("table", { class: "results-table" });
+  table.appendChild(el("thead", {}, el("tr", {}, [el("th", {}, "Who / Game"), el("th", {}, "Pick"), el("th", {}, "Verdict"), el("th", {}, "")])));
+  const body = el("tbody");
+  for (const e of revealed) {
+    const g = GAME_BY_ID[String(e.matchId)];
+    const playerKey = e.playerKey || playerKeyOf(e.playerId, e.playerName);
+    const s = scorePlayerPick(e, g, overrides);
+    const verdict = s.manual ? (s.hit ? "Manual ✓" : "Manual ✗") : s.pending ? "Pending" : (s.hit ? "Auto ✓" : "Auto ✗");
+    const mkBtn = (label, hit) => el("button", {
+      type: "button", class: "auth-btn ghost grade-btn",
+      onclick: async () => { try { await apiPost("/api/player-pick/override", { userId: e.userId, matchId: e.matchId, playerKey, hit }); location.reload(); } catch (err) { alert(err.message); } },
+    }, label);
+    body.appendChild(el("tr", {}, [
+      el("td", {}, [e.displayName, el("span", { class: "muted" }, g ? `  · ${g.name}` : "")]),
+      el("td", {}, e.playerName || "—"),
+      el("td", {}, verdict),
+      el("td", {}, [mkBtn("Hit", true), mkBtn("Miss", false), mkBtn("Auto", null)]),
+    ]));
+  }
+  table.appendChild(body); details.appendChild(table);
+  return details;
+}
+
+// ---- maker ----
+// My picks for a game, from localStorage (so I can see my own hidden picks
+// before kickoff). Each: {playerId, playerName, playerKey}. Tolerates the old
+// single-object shape from before multi-pick.
+function myPicks(saved, gameId) {
+  const v = saved[String(gameId)];
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (v.playerName) return [{ playerId: v.playerId || "", playerName: v.playerName, playerKey: playerKeyOf(v.playerId, v.playerName) }];
+  return [];
+}
+function totalMyPicks(saved) {
+  return Object.keys(saved).reduce((n, gid) => n + myPicks(saved, gid).length, 0);
+}
+
+function renderPlayerPicksMaker(ppData) {
+  PP_DATA = ppData;
+  const root = document.getElementById("player-maker");
+  if (!root) return;
+  root.innerHTML = "";
+
+  root.appendChild(el("h2", { class: "picker-intro-h" }, "Pick a player to score"));
+  root.appendChild(el("p", { class: "hint" },
+    [`Optional side bet on any game: pick one or more players you think will score. `,
+      el("strong", {}, `$${FEES.playerToScore} per pick`), `, and `, el("strong", {}, `+${PLAYER_SCORE_POINTS} points`),
+      ` for each player who scores in their game. Pick as many players per game as you like — but each player only once across the whole contest.`]));
+
+  if (!PLAYER_GAMES.length) {
+    root.appendChild(pickerClosedCard("No games available yet",
+      "This opens as soon as the next World Cup games (with both teams known) are on the schedule. Check back shortly."));
+    return;
+  }
+  if (!ME || !ME.username) {
+    root.appendChild(signInCard("pick a scorer"));
+    return;
+  }
+
+  const saved = lsGet(LS.playerPicks, {});
+  const n = totalMyPicks(saved);
+  root.appendChild(el("p", { class: "hint" }, `Picking as ${ME.username}. ${n} pick${n === 1 ? "" : "s"} so far · $${n * FEES.playerToScore} staked.`));
+
+  const open = PLAYER_GAMES.filter((g) => !gameKicked(g));
+  const closed = PLAYER_GAMES.filter((g) => gameKicked(g));
+
+  const overrides = ppData.overrides || {};
+  const list = el("div", { class: "picks-list" });
+  if (open.length) {
+    list.appendChild(el("h3", { class: "picks-round-head" }, "Open for picks"));
+    for (const g of open) list.appendChild(drawPlayerPickRow(g, saved, overrides));
+  }
+  if (closed.length) {
+    list.appendChild(el("h3", { class: "picks-round-head" }, "Kicked off / results"));
+    for (const g of closed.slice().reverse()) list.appendChild(drawPlayerPickRow(g, saved, overrides));
+  }
+  root.appendChild(list);
+}
+
+function drawPlayerPickRow(g, saved, overrides) {
+  const kicked = gameKicked(g);
+  const row = el("div", { class: "pick-row player-row" + (kicked ? " locked" : "") });
+
+  const meta = el("div", { class: "pick-meta" });
+  meta.appendChild(el("span", { class: "pick-date" }, kicked ? (g.status === "post" ? "Full time" : g.status === "in" ? "Live" : "Kicked off") : fmtDate(g.date)));
+  row.appendChild(meta);
+
+  const matchup = el("div", { class: "pick-matchup" });
+  matchup.appendChild(sideChip(g.home, g, "home"));
+  matchup.appendChild(el("span", { class: "pick-vs" }, "v"));
+  matchup.appendChild(sideChip(g.away, g, "away"));
+  row.appendChild(matchup);
+
+  const mine = myPicks(saved, g.id);
+  const panel = el("div", { class: "player-pick-panel" });
+
+  if (kicked) {
+    if (mine.length) {
+      const ul = el("ul", { class: "player-pick-mine" });
+      for (const pk of mine) {
+        const s = scorePlayerPick({ userId: ME && ME.id, matchId: String(g.id), playerId: pk.playerId || null, playerName: pk.playerName, playerKey: pk.playerKey }, g, overrides);
+        const verdict = s.pending ? " — pending" : s.hit ? ` — scored ✓ (+${PLAYER_SCORE_POINTS})` : " — didn’t score";
+        ul.appendChild(el("li", {}, [el("strong", {}, pk.playerName), verdict]));
+      }
+      panel.appendChild(ul);
+    } else {
+      panel.appendChild(el("div", { class: "pick-locked-note" }, "No pick"));
+    }
+    row.appendChild(panel);
+    return row;
+  }
+
+  // Existing picks for this game, each removable.
+  if (mine.length) {
+    const ul = el("ul", { class: "player-pick-mine" });
+    for (const pk of mine) {
+      const remStatus = el("span", { class: "pick-status" });
+      ul.appendChild(el("li", {}, [
+        el("strong", {}, pk.playerName),
+        el("button", { type: "button", class: "auth-btn ghost grade-btn", onclick: () => removePlayerPick(g, pk.playerKey, remStatus) }, "Remove"),
+        remStatus,
+      ]));
+    }
+    panel.appendChild(ul);
+  }
+
+  // Add-a-player input.
+  const list = rosterFor(g);
+  const dlId = `dl-${g.id}`;
+  const input = el("div", { class: "pick-input player-pick-input" });
+  const text = el("input", { type: "text", class: "player-in", placeholder: list.length ? "Add a player…" : "Player name", list: list.length ? dlId : null, autocomplete: "off" });
+  input.appendChild(text);
+  if (list.length) {
+    const dl = el("datalist", { id: dlId });
+    const seen = new Set();
+    for (const p of list) { if (seen.has(p.name)) continue; seen.add(p.name); dl.appendChild(el("option", { value: p.name }, `${p.name} (${p.team})`)); }
+    input.appendChild(dl);
+  }
+  const status = el("span", { class: "pick-status" });
+  input.appendChild(el("button", { type: "button", class: "pick-save", onclick: () => savePlayerPick(g, text, status) }, mine.length ? "Add ($" + FEES.playerToScore + ")" : "Add player ($" + FEES.playerToScore + ")"));
+  input.appendChild(status);
+  panel.appendChild(input);
+
+  row.appendChild(panel);
+  return row;
+}
+
+async function savePlayerPick(g, textInput, statusEl) {
+  if (!ME || !ME.username) { statusEl.textContent = "Sign in first"; statusEl.className = "pick-status error"; return; }
+  const name = textInput.value.trim();
+  if (!name) { statusEl.textContent = "Enter a player"; statusEl.className = "pick-status error"; return; }
+  const playerId = findPlayerId(g, name);
+  const playerKey = playerKeyOf(playerId, name);
+  try {
+    await apiPost("/api/player-pick", { matchId: g.id, playerId, playerName: name });
+    // Mirror server "unique per player" semantics locally: drop this player from
+    // any game, then add to this one.
+    const all = lsGet(LS.playerPicks, {});
+    for (const gid of Object.keys(all)) {
+      const arr = myPicks(all, gid).filter((p) => p.playerKey !== playerKey);
+      if (arr.length) all[gid] = arr; else delete all[gid];
+    }
+    const cur = myPicks(all, g.id);
+    cur.push({ playerId, playerName: name, playerKey });
+    all[String(g.id)] = cur;
+    lsSet(LS.playerPicks, all);
+    renderPlayerPicksMaker(PP_DATA);
+  } catch (e) {
+    statusEl.textContent = e.message; statusEl.className = "pick-status error";
+  }
+}
+
+async function removePlayerPick(g, playerKey, statusEl) {
+  try {
+    await apiPost("/api/player-pick", { matchId: g.id, playerKey, remove: true });
+    const all = lsGet(LS.playerPicks, {});
+    const arr = myPicks(all, g.id).filter((p) => p.playerKey !== playerKey);
+    if (arr.length) all[String(g.id)] = arr; else delete all[String(g.id)];
+    lsSet(LS.playerPicks, all);
+    renderPlayerPicksMaker(PP_DATA);
   } catch (e) {
     statusEl.textContent = e.message; statusEl.className = "pick-status error";
   }
@@ -788,9 +1171,6 @@ function computeWinnerTakeAll(label, ranked, fee) {
   return { label, entries: ranked.map((r) => r.displayName), fee, pot, payouts, structure: "Winner takes all" };
 }
 
-function getNameMap() { return lsGet(LS.nameMap, {}); }
-function resolvedName(n) { const m = getNameMap(); return m[(n || "").trim()] || n; }
-
 function buildBalances(contests) {
   const people = new Map();
   const touch = (dn) => {
@@ -799,10 +1179,52 @@ function buildBalances(contests) {
     return people.get(key);
   };
   for (const c of contests) {
-    for (const e of c.entries) touch(e).net -= c.fee;
+    // c.stakes (player-to-score) charges per-pick; everything else is a flat fee.
+    for (const e of c.entries) {
+      const amt = c.stakes ? (c.stakes[(e || "").trim().toLowerCase()] || 0) : c.fee;
+      touch(e).net -= amt;
+    }
     for (const p of c.payouts) touch(p.displayName).net += p.amount;
   }
   return [...people.values()];
+}
+
+// Player-to-score payouts: own pot, 1st 70% / 2nd 30% / 3rd refund — but the
+// stake (and refund) is per-pick ($5 × picks made), not a flat entry fee.
+function computePlayerToScoreResults(label, persons, fee) {
+  const ranked = persons.slice().sort((a, b) => b.total - a.total || a.displayName.localeCompare(b.displayName));
+  const stakes = {};
+  let pot = 0;
+  for (const p of ranked) { const s = p.picks * fee; stakes[p.displayName.trim().toLowerCase()] = s; pot += s; }
+  const entries = ranked.map((t) => t.displayName);
+  const base = { label, entries, fee, pot, payouts: [], structure: "1st 70% / 2nd 30% / 3rd refund · $" + fee + "/pick", stakes };
+  // Nobody has scored yet → refund each person their own stake so the books stay
+  // balanced (no spurious transfers before any game decides anything).
+  if (!ranked.length || ranked[0].total <= 0) {
+    return { ...base, structure: "No scores yet — stakes at risk", payouts: ranked.map((t) => ({ displayName: t.displayName, amount: stakes[t.displayName.trim().toLowerCase()], role: "refund (TBD)" })) };
+  }
+
+  let lastTotal = null, lastRank = 0;
+  ranked.forEach((t, i) => { if (t.total !== lastTotal) { lastRank = i + 1; lastTotal = t.total; } t.rank = lastRank; });
+  const rank1 = ranked.filter((t) => t.rank === 1), rank2 = ranked.filter((t) => t.rank === 2), rank3 = ranked.filter((t) => t.rank === 3);
+  const stakeOf = (t) => stakes[t.displayName.trim().toLowerCase()];
+  const payouts = [];
+
+  if (ranked.length < 3) {
+    const share = pot / rank1.length;
+    rank1.forEach((t) => payouts.push({ displayName: t.displayName, amount: share, role: rank1.length > 1 ? "winner (tie)" : "winner" }));
+    return { ...base, payouts, structure: "Winner takes all (<3 entries) · $" + fee + "/pick" };
+  }
+  const hasR2 = rank2.length > 0, hasR3 = rank3.length > 0;
+  const refund = hasR3 ? rank3.reduce((s, t) => s + stakeOf(t), 0) : 0;
+  const firstSecond = pot - refund;
+  const firstTot = hasR2 ? 0.7 * firstSecond : firstSecond;
+  const secondTot = hasR2 ? 0.3 * firstSecond : 0;
+  const firstEach = firstTot / rank1.length;
+  rank1.forEach((t) => payouts.push({ displayName: t.displayName, amount: firstEach, role: rank1.length > 1 ? (hasR2 ? "1st (tie)" : "1st+2nd (tie)") : "1st" }));
+  if (hasR2 && secondTot > 0) { const each = secondTot / rank2.length; rank2.forEach((t) => payouts.push({ displayName: t.displayName, amount: each, role: rank2.length > 1 ? "2nd (tie)" : "2nd" })); }
+  if (hasR3) rank3.forEach((t) => payouts.push({ displayName: t.displayName, amount: stakeOf(t), role: rank3.length > 1 ? "3rd refund (tie)" : "3rd refund" }));
+  return { ...base, payouts };
 }
 function settleTransactions(balances) {
   const EPS = 0.005;
@@ -820,7 +1242,7 @@ function settleTransactions(balances) {
 const fmtMoney = (n) => { const a = Math.abs(n); return "$" + a.toFixed(a % 1 ? 2 : 0); };
 const fmtMoneySigned = (n) => (Math.abs(n) < 0.005 ? "$0" : (n > 0 ? "+" : "−") + fmtMoney(n));
 
-function renderResults(bracketData, predData) {
+function renderResults(bracketData, predData, ppData) {
   const root = document.getElementById("results");
   root.innerHTML = "";
 
@@ -870,6 +1292,23 @@ function renderResults(bracketData, predData) {
     }
   }
 
+  // Player-to-score contest ($5/pick, +2 if your player scores; own pot split).
+  if (ppData && (ppData.entries || []).length) {
+    const overrides = ppData.overrides || {};
+    const ppPlayers = new Map();
+    for (const e of ppData.entries) {
+      const key = (e.displayName || "").trim().toLowerCase();
+      if (!ppPlayers.has(key)) ppPlayers.set(key, { displayName: e.displayName, total: 0, picks: 0 });
+      const p = ppPlayers.get(key);
+      p.picks++; // each pick is a $5 stake, whether or not it's revealed yet
+      if (e.revealed && e.playerId != null) {
+        const s = scorePlayerPick(e, GAME_BY_ID[String(e.matchId)], overrides);
+        if (s.hit) p.total += s.points;
+      }
+    }
+    if (ppPlayers.size) contests.push(computePlayerToScoreResults("Player to score", [...ppPlayers.values()], FEES.playerToScore));
+  }
+
   root.appendChild(el("div", { class: "results-header" }, [
     el("h2", {}, "Settle up"),
     el("p", { class: "hint" }, SNAP.tournament && SNAP.tournament.complete
@@ -904,15 +1343,8 @@ function renderResults(bracketData, predData) {
   }
   root.appendChild(pots);
 
-  // Balances (merged by mapped real name)
-  const raw = buildBalances(contests);
-  const merged = new Map();
-  for (const b of raw) {
-    const rn = resolvedName(b.display);
-    if (merged.has(rn)) merged.get(rn).net += b.net;
-    else merged.set(rn, { display: rn, net: b.net });
-  }
-  const balances = [...merged.values()].sort((a, b) => b.net - a.net);
+  // Per-player balance — accounts are unique, so no name merging needed.
+  const balances = buildBalances(contests).sort((a, b) => b.net - a.net);
 
   const balCard = el("div", { class: "results-section" });
   balCard.appendChild(el("h3", { class: "results-section-title" }, "Per-player balance"));
@@ -925,7 +1357,6 @@ function renderResults(bracketData, predData) {
     ]));
   }
   bt.appendChild(bb); balCard.appendChild(bt);
-  balCard.appendChild(nameMapUI(raw, bracketData, predData));
   root.appendChild(balCard);
 
   // Transfers
@@ -943,31 +1374,6 @@ function renderResults(bracketData, predData) {
     settle.appendChild(list);
   }
   root.appendChild(settle);
-}
-
-function nameMapUI(rawBalances, bracketData, predData) {
-  const details = el("details", {});
-  const summary = document.createElement("summary");
-  summary.className = "results-section-title collapsible-title";
-  summary.textContent = "Merge duplicate names";
-  details.appendChild(summary);
-  details.appendChild(el("p", { class: "hint" }, "Map a team name to a real person so multiple entries settle as one. Saved in your browser."));
-  const map = getNameMap();
-  const table = el("table", { class: "results-table name-map-table" });
-  table.appendChild(el("thead", {}, el("tr", {}, [el("th", {}, "Entry name"), el("th", {}, "Real name")])));
-  const body = el("tbody");
-  for (const b of rawBalances) {
-    const inp = el("input", { type: "text", class: "name-map-input", placeholder: b.display, value: map[b.display] || "" });
-    inp.addEventListener("change", () => {
-      const m = getNameMap();
-      if (inp.value.trim()) m[b.display] = inp.value.trim(); else delete m[b.display];
-      lsSet(LS.nameMap, m);
-      renderResults(bracketData, predData);
-    });
-    body.appendChild(el("tr", {}, [el("td", { class: "name" }, b.display), el("td", {}, inp)]));
-  }
-  table.appendChild(body); details.appendChild(table);
-  return details;
 }
 
 // ===========================================================================
@@ -1012,7 +1418,7 @@ function wireTabs() {
 
 function safeToRefresh(tabId) {
   // Don't reload while someone is mid-entry on a picker tab.
-  return tabId !== "make-bracket" && tabId !== "make-picks";
+  return tabId !== "make-bracket" && tabId !== "make-picks" && tabId !== "make-player";
 }
 function startAutoRefresh() {
   setInterval(() => {
@@ -1034,12 +1440,15 @@ async function main() {
   startAutoRefresh();
   wireTeamSearch();
 
-  let scores, bracketData, predData;
+  let scores, bracketData, predData, ppData, meResp, rostersResp;
   try {
-    [scores, bracketData, predData] = await Promise.all([
+    [scores, bracketData, predData, ppData, meResp, rostersResp] = await Promise.all([
       api("/api/scores"),
       api("/api/brackets").catch(() => ({ entries: [], locked: false })),
       api("/api/predictions").catch(() => ({ entries: [] })),
+      api("/api/player-picks").catch(() => ({ entries: [], overrides: {} })),
+      api("/api/me").catch(() => ({ user: null })),
+      api("/api/rosters").catch(() => ({ rosters: {} })),
     ]);
   } catch (e) {
     const err = document.getElementById("error");
@@ -1048,15 +1457,20 @@ async function main() {
     return;
   }
 
+  ME = (meResp && meResp.user) || null;
+  ROSTERS = (rostersResp && rostersResp.rosters) || {};
   indexSnapshot(scores);
+  renderAuthBar();
   renderHeader();
   renderBracketStandings(bracketData);
   renderBracketPicker();
   renderPredictionStandings(predData);
   renderPicksMaker(predData);
+  renderPlayerStandings(ppData);
+  renderPlayerPicksMaker(ppData);
   renderBracketTree();
   renderTeams();
-  renderResults(bracketData, predData);
+  renderResults(bracketData, predData, ppData);
 }
 
 main();

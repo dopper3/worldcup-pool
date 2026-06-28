@@ -20,6 +20,12 @@ binding = "DB"
 database_name = "wc-pool"
 database_id = "374ecbe0-c2d8-4aa5-86a6-cc2c70e5f4e0"
 
+# Pool members who can use the admin-only manual override (force a player-to-score
+# pick to count when feed auto-grading can't resolve it). Comma-separated, matched
+# case-insensitively against usernames. Set this to whatever handle YOU register.
+[vars]
+ADMIN_USERNAMES = "dopper3"
+
 # Refresh scores every 3 minutes. Cron is UTC; this runs year-round but the
 # fetch is cheap and a no-op outside tournament time.
 [triggers]

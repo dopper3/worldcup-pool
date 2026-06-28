@@ -29,11 +29,15 @@
       </div>
     </header>
 
+    <div id="auth-bar" class="auth-bar wrap"></div>
+
     <nav class="tabs wrap">
       <button class="tab active" data-tab="bracket">Bracket standings</button>
       <button class="tab" data-tab="make-bracket">Make your bracket</button>
       <button class="tab" data-tab="predictions">Match picks</button>
       <button class="tab" data-tab="make-picks">Make match picks</button>
+      <button class="tab" data-tab="player">Player to score</button>
+      <button class="tab" data-tab="make-player">Pick a scorer</button>
       <button class="tab" data-tab="tree">Bracket</button>
       <button class="tab" data-tab="results">Results</button>
       <button class="tab" data-tab="teams">Teams</button>
@@ -69,6 +73,20 @@
         <div id="picks-maker"></div>
       </section>
 
+      <section id="tab-player" class="tab-panel">
+        <p class="hint">
+          Pick players to score in any game. <strong>$5 per pick</strong>, and
+          <strong>+2 points</strong> for each player who scores in their game — added to your overall total.
+          Optional: stack multiple players on a game, but each player only once across the contest.
+          <span class="fee-tag">$5 / pick</span>
+        </p>
+        <div id="player-standings"></div>
+      </section>
+
+      <section id="tab-make-player" class="tab-panel">
+        <div id="player-maker"></div>
+      </section>
+
       <section id="tab-tree" class="tab-panel">
         <div id="bracket-tree"></div>
       </section>
@@ -85,9 +103,15 @@
       <section id="tab-rules" class="tab-panel">
         <h2>The format</h2>
         <p class="rules-intro">
-          Three contests, knockout stage only (Round of 32 onward). Enter any
-          mix you like.
+          Four contests. Enter any mix you like — they all settle into one
+          running balance per person.
         </p>
+
+        <h2>Your account</h2>
+        <ul>
+          <li>Sign up once with a username and password (top of the page). Every pick, point, and fee is tied to your account — no more guessing who "Pat M." is.</li>
+          <li>Your picks stay hidden from everyone else until each game kicks off.</li>
+        </ul>
 
         <h2>Contest 1 — Bracket <span class="fee-tag">$40</span></h2>
         <ul>
@@ -109,6 +133,15 @@
           <li>Each match locks at its own kickoff. Predict as many or as few as you like; others' picks stay hidden until kickoff.</li>
         </ul>
 
+        <h2>Contest 3 — Player to score <span class="fee-tag">$5 / pick</span></h2>
+        <ul>
+          <li>Pick one or more players you think will score in any given game. Totally optional — stack several players on one game, a few games, or none. Each player can only be picked once across the whole contest.</li>
+          <li><strong>$5 per pick.</strong> For each of your players who scores in their game you get <strong>+2 points</strong>; if they don't, you get nothing. Either way each $5 is in the pot.</li>
+          <li>Goals in normal/extra time count (including penalties). Own goals and penalty-shootout goals don't count.</li>
+          <li>Runs on the <strong>current slate of games</strong> (group stage and knockouts) — it's live now, independent of the bracket. Each pick locks at that game's kickoff; remove a pick beforehand if you change your mind.</li>
+          <li>Graded automatically from the live feed. The pool admin can manually fix a pick if the feed can't resolve a name.</li>
+        </ul>
+
         <h2>Bonus — Third-place playoff <span class="fee-tag">$20</span></h2>
         <ul>
           <li>Predict the score of the 3rd-place playoff (the two losing semifinalists).</li>
@@ -118,17 +151,18 @@
 
         <h2>How to enter</h2>
         <ol>
-          <li>Go to <a href="#" data-jump="make-bracket">Make your bracket</a> and/or <a href="#" data-jump="make-picks">Make match picks</a>.</li>
-          <li>Type your display name, make your picks, hit submit. That's it — no Google Form, your entry lands instantly.</li>
-          <li>Use the <strong>same display name</strong> to update; your latest submission replaces the old one.</li>
+          <li>Sign up with a username and password at the top of the page (or log in).</li>
+          <li>Go to <a href="#" data-jump="make-bracket">Make your bracket</a>, <a href="#" data-jump="make-picks">Make match picks</a>, and/or <a href="#" data-jump="make-player">Pick a scorer</a> and make your picks. They land instantly — no Google Form.</li>
+          <li>Come back any time before kickoff to update; your latest pick replaces the old one.</li>
         </ol>
 
         <h2>Payouts</h2>
         <ul>
           <li><strong>Bracket:</strong> 1st 70% / 2nd 30%, 3rd gets their entry back (winner-take-all under 3 entries).</li>
           <li><strong>Match picks:</strong> 1st 70% / 2nd 30%, 3rd gets their entry back.</li>
+          <li><strong>Player to score:</strong> own pot ($5 × every pick made), split 1st 70% / 2nd 30% / 3rd refund by total player-to-score points.</li>
           <li><strong>Third-place bonus:</strong> winner takes all.</li>
-          <li>The <a href="#" data-jump="results">Results</a> tab shows live projected payouts and the minimum set of transfers to settle up.</li>
+          <li>The <a href="#" data-jump="results">Results</a> tab shows live projected payouts and the minimum set of transfers to settle up — all four contests netted into one balance per person.</li>
         </ul>
       </section>
     </main>

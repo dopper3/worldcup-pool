@@ -14,7 +14,9 @@ Google Form.
 
 ## The format
 
-Three contests, **knockout stage only** (Round of 32 → Final). Enter any mix.
+Four contests, all netted into **one running balance per person**. Sign up once
+with a **username + password** (top of the site) — every pick, point, and fee is
+tied to your account, so a multi-contest pool stays unambiguous.
 
 ### Contest 1 — Bracket · `$40`
 Fill in the entire knockout bracket: pick the winner of every match from the
@@ -41,6 +43,18 @@ result (W/D/L) only = **1 pt**. Each match locks at its own kickoff, and nobody
 can see anyone else's pick for a match until it kicks off. Predict as many or as
 few matches as you like.
 
+### Contest 3 — Player to score · `$5 / pick`
+Pick one or more players you think will score in any given game — totally
+optional. **$5 per pick**, and **+2 points** for each of your players who scores
+in their game. Stack as many players as you like on a single game, but you can
+pick any given player **only once** across the whole contest. Goals in
+normal/extra time count (penalties included); own goals and shootout goals
+don't. Runs on the **current slate of games** (group stage *and* knockouts), so
+it's live immediately and independent of the bracket. Each pick locks at that
+game's kickoff (remove it beforehand if you change your mind). Graded
+automatically from the live ESPN feed, with an admin manual override as a
+fallback when the feed can't resolve a name.
+
 ### Bonus — Third-place playoff · `$20`
 Predict the score of the 3rd-place playoff (the two losing semifinalists). Same
 scoring as match picks (exact = 3, right result = 1), **winner takes all** (ties
@@ -48,10 +62,11 @@ split). Locks at that match's kickoff.
 
 ### Payouts & settlement
 Bracket and Match picks pay **1st 70% / 2nd 30%, 3rd gets their entry back**
-(winner-take-all under 3 entries); the Third-place bonus is winner-take-all. The
-**Results** tab computes live projected payouts across all three contests, each
-player's net balance, and the **minimum set of transfers** to settle up — the
-same settlement engine as the PGA pool.
+(winner-take-all under 3 entries); Player-to-score uses the same split over its
+own pot (**$5 × every pick made**, ranked by player-to-score points); the
+Third-place bonus is winner-take-all. The **Results** tab computes live projected
+payouts across all four contests, each player's net balance, and the **minimum
+set of transfers** to settle up — the same settlement engine as the PGA pool.
 
 ---
 
@@ -93,7 +108,9 @@ Everything stays **free** and the repo is still the source of truth.
     names), and writes a normalized snapshot to `kv['scores']`.
 - **`public/`** — the static site: `index.html`, `assets/app.js` (renderer +
   scoring + pickers + settlement), `assets/style.css`.
-- **`schema.sql`** — the three D1 tables (`kv`, `brackets`, `predictions`).
+- **`schema.sql`** — the D1 tables (`kv`, `users`, `sessions`, `brackets`,
+  `predictions`, `player_picks`). `migrations/0001_*.sql` re-keys an existing
+  name-based deployment to accounts.
 - **`scripts/seed-sample.py`** — mirrors the Worker's fetch so you can inspect a
   real snapshot (`data/scores.sample.json`) without deploying.
 
@@ -101,15 +118,21 @@ Everything stays **free** and the repo is still the source of truth.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/scores` | Normalized ESPN snapshot (matches, bracket tree, teams). |
+| `GET` | `/api/scores` | Normalized ESPN snapshot (matches, bracket tree, teams, player-game slate). |
+| `POST` | `/api/register` · `/api/login` · `/api/logout` | Account auth. Sets/clears an HttpOnly session cookie. |
+| `GET` | `/api/me` | The current signed-in user (or `null`). |
 | `GET` | `/api/brackets` | Bracket entries. Picks hidden until the bracket locks. |
-| `POST` | `/api/bracket` | Submit/replace a bracket (validated against the real draw). |
+| `POST` | `/api/bracket` | Submit/replace a bracket (auth required; validated against the real draw). |
 | `GET` | `/api/predictions` | Match predictions. Each hidden until its match kicks off. |
-| `POST` | `/api/prediction` | Submit/replace one match-score prediction. |
+| `POST` | `/api/prediction` | Submit/replace one match-score prediction (auth required). |
+| `GET` | `/api/player-picks` | Player-to-score picks (each hidden until its game kicks off) + admin overrides. |
+| `POST` | `/api/player-pick` | Submit/replace/remove a player-to-score pick (auth required). |
+| `POST` | `/api/player-pick/override` | Admin: force a pick to count or not (manual grading fallback). |
+| `GET` | `/api/rosters` | Cached team rosters (powers the player-pick autocomplete). |
 | `POST` | `/api/refresh` | Manually trigger a score refresh (handy right after deploy). |
 
-Entries dedupe by **display name** (case-insensitive) — latest submission wins,
-exactly like the PGA pool.
+Identity is a **real account** (`user_id`), not a typed name — passwords are
+PBKDF2-SHA256 hashed and sessions are opaque, server-side, revocable cookies.
 
 ---
 
@@ -136,6 +159,11 @@ npx wrangler d1 create wc-pool
 
 # 3. Create the tables
 npm run db:init                   # wrangler d1 execute wc-pool --file=schema.sql --remote
+#   Already deployed the old name-based schema? Run the migration instead:
+#   npx wrangler d1 execute wc-pool --file=migrations/0001_accounts_and_player_picks.sql --remote
+
+# 3b. Set yourself as admin: edit ADMIN_USERNAMES in wrangler.toml [vars] to the
+#     username you'll register (comma-separated for more than one).
 
 # 4. Deploy the Worker (site + API + cron, all in one)
 npm run deploy

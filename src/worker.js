@@ -55,6 +55,13 @@ const FEEDERS = {
 };
 const PREV_ROUND = { R16: "R32", QF: "R16", SF: "QF", F: "SF" };
 
+// Manual override for when the bracket locks. Normally the cutoff is the first
+// Round of 32 kickoff (computed below from ESPN), but set this to an ISO
+// timestamp to reopen/extend bracket picks. Set back to null to restore the
+// automatic "locks at first R32 kickoff" behaviour.
+//   2026-06-29T16:00:00-04:00  =  4pm Eastern (EDT), Mon June 29 2026.
+const BRACKET_CUTOFF_OVERRIDE = "2026-06-29T16:00:00-04:00";
+
 const UA = { "User-Agent": "nettzone-wc-pool/1.0 (cloudflare worker)" };
 const ESPN_SCOREBOARD =
   "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard";
@@ -329,7 +336,8 @@ async function refreshScores(env) {
 
   const r32 = matches.filter((m) => m.round === "R32");
   const bracketReady = r32.length === 16 && r32.every((m) => !m.home.placeholder && !m.away.placeholder);
-  const bracketCutoff = r32.length ? r32.map((m) => m.date).sort()[0] : null;
+  const bracketCutoff = BRACKET_CUTOFF_OVERRIDE
+    || (r32.length ? r32.map((m) => m.date).sort()[0] : null);
 
   const anyLive = matches.some((m) => m.status === "in");
   const allDone = matches.length > 0 && matches.every((m) => m.status === "post");

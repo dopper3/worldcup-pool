@@ -22,7 +22,8 @@ const LS = {
   bracket: "wc:bracket",
   preds: "wc:preds",
   playerPicks: "wc:playerPicks",
-  tab: "wc:tab",
+  sec: "wc:sec",
+  sub: "wc:sub",
 };
 const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -1398,33 +1399,57 @@ function flash(id, msg, kind) {
 // ===========================================================================
 // tabs + auto-refresh + boot
 // ===========================================================================
-function wireTabs() {
-  const tabs = document.querySelectorAll(".tab");
-  const panels = document.querySelectorAll(".tab-panel");
-  tabs.forEach((tab) => tab.addEventListener("click", () => {
-    tabs.forEach((t) => t.classList.remove("active"));
-    panels.forEach((p) => p.classList.remove("active"));
-    tab.classList.add("active");
-    document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
-    lsSetStr(LS.tab, tab.dataset.tab);
-  }));
-  document.querySelectorAll("[data-jump]").forEach((a) => a.addEventListener("click", (e) => {
-    e.preventDefault();
-    document.querySelector(`.tab[data-tab="${a.getAttribute("data-jump")}"]`).click();
-  }));
-  const saved = lsGetStr(LS.tab);
-  if (saved) { const t = document.querySelector(`.tab[data-tab="${saved}"]`); if (t) t.click(); }
+// Two-tier nav: primary sections (.pnav-btn → .psection) each with an optional
+// segmented sub-toggle (.seg-btn → .subpanel). Selection persists per section.
+const MAKE_PANELS = ["sub-bracket-make", "sub-picks-make", "sub-scorers-make"];
+
+function defaultSub(sec) {
+  const section = document.getElementById("sec-" + sec);
+  const first = section && section.querySelector(".subpanel");
+  return first ? first.id : null;
+}
+function activateSub(sec, sub) {
+  const section = document.getElementById("sec-" + sec);
+  if (!section || !sub) return;
+  const group = section.querySelector(".segmented");
+  if (group) group.querySelectorAll(".seg-btn").forEach((b) => b.classList.toggle("active", b.dataset.sub === sub));
+  section.querySelectorAll(".subpanel").forEach((p) => p.classList.toggle("active", p.id === sub));
+  lsSetStr(LS.sub + ":" + sec, sub);
+}
+function activateSection(sec, sub) {
+  if (!document.getElementById("sec-" + sec)) return;
+  document.querySelectorAll(".pnav-btn").forEach((b) => b.classList.toggle("active", b.dataset.sec === sec));
+  document.querySelectorAll(".psection").forEach((p) => p.classList.toggle("active", p.id === "sec-" + sec));
+  activateSub(sec, sub || lsGetStr(LS.sub + ":" + sec) || defaultSub(sec));
+  lsSetStr(LS.sec, sec);
 }
 
-function safeToRefresh(tabId) {
-  // Don't reload while someone is mid-entry on a picker tab.
-  return tabId !== "make-bracket" && tabId !== "make-picks" && tabId !== "make-player";
+function wireTabs() {
+  document.querySelectorAll(".pnav-btn").forEach((btn) => btn.addEventListener("click", () => {
+    activateSection(btn.dataset.sec);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }));
+  document.querySelectorAll(".segmented").forEach((group) => {
+    group.querySelectorAll(".seg-btn").forEach((btn) =>
+      btn.addEventListener("click", () => activateSub(group.dataset.group, btn.dataset.sub)));
+  });
+  document.querySelectorAll("[data-go]").forEach((a) => a.addEventListener("click", (e) => {
+    e.preventDefault();
+    activateSection(a.dataset.go, a.dataset.sub);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }));
+  const savedSec = lsGetStr(LS.sec);
+  if (savedSec && document.getElementById("sec-" + savedSec)) activateSection(savedSec);
+}
+
+function safeToRefresh() {
+  // Don't reload while someone is mid-entry on a "make picks" panel.
+  const sec = document.querySelector(".psection.active");
+  const active = sec && sec.querySelector(".subpanel.active");
+  return !active || !MAKE_PANELS.includes(active.id);
 }
 function startAutoRefresh() {
-  setInterval(() => {
-    const active = document.querySelector(".tab.active");
-    if (active && safeToRefresh(active.dataset.tab)) location.reload();
-  }, 45000);
+  setInterval(() => { if (safeToRefresh()) location.reload(); }, 45000);
 }
 
 function wireTeamSearch() {

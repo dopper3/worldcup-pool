@@ -126,14 +126,14 @@ async function handleApi(request, env, url) {
   }
 
   if (path === "/api/brackets" && method === "GET") {
-    return json(await getBrackets(env));
+    return json(await getBrackets(request, env));
   }
   if (path === "/api/bracket" && method === "POST") {
     return await submitBracket(request, env);
   }
 
   if (path === "/api/predictions" && method === "GET") {
-    return json(await getPredictions(env));
+    return json(await getPredictions(request, env));
   }
   if (path === "/api/prediction" && method === "POST") {
     return await submitPrediction(request, env);
@@ -153,7 +153,7 @@ async function handleApi(request, env, url) {
     return json({ rosters: (await readKv(env, "rosters")) || {} });
   }
   if (path === "/api/player-picks" && method === "GET") {
-    return json(await getPlayerPicks(env));
+    return json(await getPlayerPicks(request, env));
   }
   if (path === "/api/player-pick" && method === "POST") {
     return await submitPlayerPick(request, env);
@@ -290,22 +290,25 @@ async function logout(request, env) {
 // ===========================================================================
 // Brackets (main contest)
 // ===========================================================================
-async function getBrackets(env) {
+async function getBrackets(request, env) {
   const snap = (await readKv(env, "scores")) || {};
   const cutoff = snap.tournament && snap.tournament.bracketCutoff
     ? Date.parse(snap.tournament.bracketCutoff) : null;
   const locked = cutoff != null && Date.now() < cutoff; // hide picks pre-cutoff
+  const user = await getSessionUser(request, env);
   const { results } = await env.DB.prepare(
-    "SELECT display_name, picks_json, updated_at FROM brackets ORDER BY display_name COLLATE NOCASE"
+    "SELECT user_id, display_name, picks_json, updated_at FROM brackets ORDER BY display_name COLLATE NOCASE"
   ).all();
+  let mine = null; // the logged-in user always gets their own picks back, even pre-cutoff
   const entries = (results || []).map((r) => {
+    if (user && r.user_id === user.id) { try { mine = JSON.parse(r.picks_json); } catch {} }
     const base = { displayName: r.display_name, updatedAt: r.updated_at };
     if (locked) return base; // names only until the bracket locks
     let picks = {};
     try { picks = JSON.parse(r.picks_json); } catch {}
     return { ...base, picks };
   });
-  return { locked, cutoff: snap.tournament ? snap.tournament.bracketCutoff : null, entries };
+  return { locked, cutoff: snap.tournament ? snap.tournament.bracketCutoff : null, entries, mine };
 }
 
 async function submitBracket(request, env) {
@@ -387,18 +390,21 @@ function validateBracket(picks, snap) {
 // ===========================================================================
 // Per-match predictions (side game)
 // ===========================================================================
-async function getPredictions(env) {
+async function getPredictions(request, env) {
   const snap = (await readKv(env, "scores")) || {};
   const byId = {};
   for (const m of snap.matches || []) byId[String(m.id)] = m;
   if (snap.thirdPlace) byId[String(snap.thirdPlace.id)] = snap.thirdPlace;
   const now = Date.now();
+  const user = await getSessionUser(request, env);
 
   const { results } = await env.DB.prepare(
-    "SELECT display_name, match_id, home_goals, away_goals, updated_at FROM predictions"
+    "SELECT user_id, display_name, match_id, home_goals, away_goals, updated_at FROM predictions"
   ).all();
 
+  const mine = {}; // matchId -> {home, away} for the logged-in user, revealed or not
   const entries = (results || []).map((r) => {
+    if (user && r.user_id === user.id) mine[String(r.match_id)] = { home: r.home_goals, away: r.away_goals };
     const m = byId[String(r.match_id)];
     const kickoff = m ? Date.parse(m.date) : null;
     const revealed = kickoff != null && now >= kickoff; // hide picks until kickoff
@@ -406,7 +412,7 @@ async function getPredictions(env) {
     if (revealed) { base.home = r.home_goals; base.away = r.away_goals; }
     return base;
   });
-  return { entries };
+  return { entries, mine };
 }
 
 async function submitPrediction(request, env) {
@@ -456,18 +462,24 @@ function playerKeyOf(playerId, playerName) {
   return "nm:" + (playerName || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-async function getPlayerPicks(env) {
+async function getPlayerPicks(request, env) {
   const snap = (await readKv(env, "scores")) || {};
   const byId = {};
   for (const g of snap.playerGames || []) byId[String(g.id)] = g;
   const now = Date.now();
   const overrides = (await readKv(env, "pp_overrides")) || {};
+  const user = await getSessionUser(request, env);
 
   const { results } = await env.DB.prepare(
     "SELECT user_id, display_name, match_id, player_id, player_name, player_key, updated_at FROM player_picks"
   ).all();
 
+  const mine = {}; // matchId -> [{playerId, playerName, playerKey}] for the logged-in user
   const entries = (results || []).map((r) => {
+    if (user && r.user_id === user.id) {
+      (mine[String(r.match_id)] = mine[String(r.match_id)] || []).push(
+        { playerId: String(r.player_id), playerName: r.player_name, playerKey: r.player_key });
+    }
     const g = byId[String(r.match_id)];
     const kickoff = g ? Date.parse(g.date) : null;
     const revealed = kickoff != null && now >= kickoff; // hide picks until kickoff
@@ -475,7 +487,7 @@ async function getPlayerPicks(env) {
     if (revealed) { base.playerId = String(r.player_id); base.playerName = r.player_name; }
     return base;
   });
-  return { entries, overrides };
+  return { entries, overrides, mine };
 }
 
 async function submitPlayerPick(request, env) {

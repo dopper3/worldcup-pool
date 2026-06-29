@@ -29,6 +29,20 @@ const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d;
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 const lsGetStr = (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
 const lsSetStr = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const lsDel = (k) => { try { localStorage.removeItem(k); } catch {} };
+
+// Seed the pickers from the server's record of THIS user's own picks. The
+// server is authoritative, so picks follow the account across devices/browsers
+// (localStorage alone is per-origin and per-device). Only runs when logged in;
+// replacing — not merging — so removals propagate and another account's leftover
+// picks on the same browser don't bleed through.
+function hydrateMyPicks(bracketData, predData, ppData) {
+  if (bracketData && "mine" in bracketData) {
+    if (bracketData.mine) lsSet(LS.bracket, bracketData.mine); else lsDel(LS.bracket);
+  }
+  if (predData && "mine" in predData) lsSet(LS.preds, predData.mine || {});
+  if (ppData && "mine" in ppData) lsSet(LS.playerPicks, ppData.mine || {});
+}
 
 // ---------- tiny DOM helper ----------
 function el(tag, props = {}, children = []) {
@@ -1485,6 +1499,7 @@ async function main() {
   ME = (meResp && meResp.user) || null;
   ROSTERS = (rostersResp && rostersResp.rosters) || {};
   indexSnapshot(scores);
+  if (ME) hydrateMyPicks(bracketData, predData, ppData);
   renderAuthBar();
   renderHeader();
   renderBracketStandings(bracketData);

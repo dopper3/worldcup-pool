@@ -223,6 +223,8 @@ main { padding: 22px 0 60px; }
 .team-btn:hover:not(:disabled) { background: var(--blue-tint); }
 .team-btn.chosen { background: var(--pitch-soft); font-weight: 700; box-shadow: inset 3px 0 0 var(--pitch); }
 .team-btn.tbd { cursor: default; color: var(--muted); background: var(--paper); }
+.team-btn.readonly { cursor: default; }
+.team-btn.readonly:not(.chosen):not(.tbd) { color: var(--muted); background: var(--paper); }
 .team-btn-name { flex: 1; }
 
 .picker-bonus { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; margin: 18px 0; }

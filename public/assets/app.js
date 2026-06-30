@@ -399,6 +399,7 @@ function renderBracketStandings(bracketData) {
 // bracket picker (interactive advancing bracket)
 // ===========================================================================
 let pickSel = {}; // `${round}-${slot}` -> teamId
+let pickerReadOnly = false; // true when the bracket is locked — show picks, no editing
 
 function loadSavedBracket() {
   const saved = lsGet(LS.bracket, null);
@@ -430,10 +431,19 @@ function renderBracketPicker() {
 
   const t = SNAP.tournament || {};
   const locked = t.bracketCutoff && Date.now() >= Date.parse(t.bracketCutoff);
+  pickerReadOnly = false;
 
   if (locked) {
-    root.appendChild(pickerClosedCard("The bracket is locked",
-      "The Round of 32 has kicked off. Head to Bracket standings to follow along."));
+    // After kickoff the bracket is read-only. Signed-in entrants can still see
+    // their own picks; everyone else just gets the closed notice.
+    const saved = loadSavedBracket();
+    if (ME && ME.username && saved && saved.winners && Object.keys(pickSel).length) {
+      sanitizePicks();
+      renderLockedBracket(root, saved, t);
+    } else {
+      root.appendChild(pickerClosedCard("The bracket is locked",
+        "The Round of 32 has kicked off. Head to Bracket standings to follow along."));
+    }
     return;
   }
   if (!SNAP.bracketReady) {
@@ -486,6 +496,33 @@ function renderBracketPicker() {
   updatePickerCount();
 }
 
+function renderLockedBracket(root, saved, t) {
+  pickerReadOnly = true;
+  const header = el("div", { class: "picker-intro" });
+  header.appendChild(el("h2", {}, "Your bracket"));
+  header.appendChild(el("p", { class: "hint" },
+    `Locked ${fmtDate(t.bracketCutoff)} — the Round of 32 has kicked off, so picks can no longer be edited. Follow along in Bracket standings.`));
+  root.appendChild(header);
+
+  const rounds = el("div", { class: "bracket-rounds" });
+  root.appendChild(rounds);
+  drawPickerRounds(rounds);
+
+  // Bonus picks, read-only.
+  const champ = pickSel["F-1"];
+  const bonus = el("div", { class: "picker-bonus" });
+  bonus.appendChild(el("h3", {}, "Bonus picks"));
+  bonus.appendChild(el("p", { class: "picker-label" },
+    ["Champion: ", el("strong", {}, champ ? teamName(champ) : "—")]));
+  bonus.appendChild(el("p", { class: "picker-label" },
+    ["Golden Boot: ", el("strong", {}, (saved.goldenBoot || "").trim() || "—")]));
+  const fwG = saved.finalWinnerGoals, flG = saved.finalLoserGoals;
+  bonus.appendChild(el("p", { class: "picker-label" },
+    ["Final scoreline: ", el("strong", {},
+      fwG != null && flG != null ? `${fwG}–${flG}` : "—")]));
+  root.appendChild(bonus);
+}
+
 function drawPickerRounds(container) {
   container.innerHTML = "";
   for (const round of ROUND_ORDER) {
@@ -515,11 +552,12 @@ function drawPickerMatch(round, slot) {
   const chosen = pickSel[`${round}-${slot}`];
   for (const id of [c1, c2]) {
     const known = !!id;
+    const interactive = known && !pickerReadOnly;
     const btn = el("button", {
       type: "button",
-      class: "team-btn" + (chosen && String(chosen) === String(id) ? " chosen" : "") + (known ? "" : " tbd"),
-      disabled: known ? null : "disabled",
-      onclick: known ? () => choosePick(round, slot, String(id)) : null,
+      class: "team-btn" + (chosen && String(chosen) === String(id) ? " chosen" : "") + (known ? "" : " tbd") + (pickerReadOnly ? " readonly" : ""),
+      disabled: interactive ? null : "disabled",
+      onclick: interactive ? () => choosePick(round, slot, String(id)) : null,
     });
     if (known) {
       const f = teamFlag(team(id));

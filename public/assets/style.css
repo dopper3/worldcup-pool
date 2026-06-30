@@ -226,6 +226,17 @@ main { padding: 22px 0 60px; }
 .team-btn.readonly { cursor: default; }
 .team-btn.readonly:not(.chosen):not(.tbd) { color: var(--muted); background: var(--paper); }
 .team-btn-name { flex: 1; }
+/* Read-only bracket right/wrong cues on the chosen team. */
+.team-btn.chosen.correct { background: var(--pitch-soft); box-shadow: inset 3px 0 0 var(--pitch); }
+.team-btn.chosen.wrong { background: #fbeae8; box-shadow: inset 3px 0 0 var(--red); color: var(--red); text-decoration: line-through; }
+.team-btn.chosen.pending { box-shadow: inset 3px 0 0 var(--muted); }
+.pick-mark { font-weight: 800; font-size: 13px; margin-left: 6px; }
+.pick-mark.correct { color: var(--pitch); }
+.pick-mark.wrong { color: var(--red); }
+.pick-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 12px; font-weight: 600; }
+.pick-legend-item.correct { color: var(--pitch); }
+.pick-legend-item.wrong { color: var(--red); }
+.pick-legend-item.pending { color: var(--muted); }
 
 .picker-bonus { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; margin: 18px 0; }
 .picker-bonus h3 { font-family: var(--serif); color: var(--navy-mid); margin: 0 0 12px; font-size: 18px; }
@@ -255,7 +266,11 @@ main { padding: 22px 0 60px; }
 .pick-status { font-size: 12px; font-weight: 600; min-width: 64px; }
 .pick-status.error { color: var(--red); }
 .pick-status.success { color: var(--pitch); }
-.pick-locked-note { font-size: 12px; color: var(--muted); text-align: right; }
+.pick-locked-note { font-size: 12px; color: var(--muted); text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.pick-result { font-weight: 700; font-size: 11px; padding: 1px 7px; border-radius: 10px; white-space: nowrap; }
+.pick-result.correct { color: var(--pitch); background: var(--pitch-soft); }
+.pick-result.partial { color: #9a6b00; background: var(--gold-soft); }
+.pick-result.wrong { color: var(--red); background: #fbeae8; }
 
 /* ---------- Third-place bonus ---------- */
 .bonus-section { margin-top: 28px; }
@@ -361,7 +376,7 @@ details[open] > .collapsible-title::before { content: "▼ "; }
 @media (max-width: 640px) {
   .site-header h1 { font-size: 22px; }
   .pick-row { grid-template-columns: 1fr; gap: 8px; text-align: center; }
-  .pick-locked-note { text-align: center; }
+  .pick-locked-note { text-align: center; align-items: center; }
   .pool-entry-header .name { font-size: 15px; }
   .picker-bar { flex-direction: column; align-items: stretch; text-align: center; }
   .picker-submit { width: 100%; }

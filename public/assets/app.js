@@ -154,6 +154,34 @@ function actualWinnersByRound() {
   return out;
 }
 
+// Per-slot right/wrong for the current pickSel, for the read-only locked bracket.
+// correct = picked team won that round; wrong = that match is decided and they
+// lost, or the team was knocked out earlier; otherwise pending.
+function gradeBracketPicks() {
+  const actual = actualWinnersByRound();
+  const eliminated = new Set();
+  for (const m of SNAP.matches || []) {
+    if (m.status === "post" && m.winnerId) {
+      const loser = String(m.home.id) === String(m.winnerId) ? m.away.id : m.home.id;
+      if (loser) eliminated.add(String(loser));
+    }
+  }
+  const grades = {};
+  for (const round of ROUND_ORDER) {
+    for (let slot = 1; slot <= ROUND_COUNT[round]; slot++) {
+      const pid = pickSel[`${round}-${slot}`];
+      if (!pid) continue;
+      const m = matchOfSlot(round, slot);
+      const decided = m && m.status === "post" && m.winnerId;
+      let g = "pending";
+      if (actual[round].has(String(pid))) g = "correct";
+      else if (decided || eliminated.has(String(pid))) g = "wrong";
+      grades[`${round}-${slot}`] = g;
+    }
+  }
+  return grades;
+}
+
 function scoreBracket(picks, actual) {
   const winners = (picks && picks.winners) || {};
   let total = 0;
@@ -400,6 +428,7 @@ function renderBracketStandings(bracketData) {
 // ===========================================================================
 let pickSel = {}; // `${round}-${slot}` -> teamId
 let pickerReadOnly = false; // true when the bracket is locked — show picks, no editing
+let bracketGrades = {}; // `${round}-${slot}` -> "correct" | "wrong" | "pending" (read-only view)
 
 function loadSavedBracket() {
   const saved = lsGet(LS.bracket, null);
@@ -498,10 +527,16 @@ function renderBracketPicker() {
 
 function renderLockedBracket(root, saved, t) {
   pickerReadOnly = true;
+  bracketGrades = gradeBracketPicks();
   const header = el("div", { class: "picker-intro" });
   header.appendChild(el("h2", {}, "Your bracket"));
   header.appendChild(el("p", { class: "hint" },
     `Locked ${fmtDate(t.bracketCutoff)} — the Round of 32 has kicked off, so picks can no longer be edited. Follow along in Bracket standings.`));
+  header.appendChild(el("div", { class: "pick-legend" }, [
+    el("span", { class: "pick-legend-item correct" }, "✓ Correct"),
+    el("span", { class: "pick-legend-item wrong" }, "✗ Out"),
+    el("span", { class: "pick-legend-item pending" }, "• Undecided"),
+  ]));
   root.appendChild(header);
 
   const rounds = el("div", { class: "bracket-rounds" });
@@ -553,9 +588,11 @@ function drawPickerMatch(round, slot) {
   for (const id of [c1, c2]) {
     const known = !!id;
     const interactive = known && !pickerReadOnly;
+    const isChosen = chosen && String(chosen) === String(id);
+    const grade = (pickerReadOnly && isChosen) ? (bracketGrades[`${round}-${slot}`] || "pending") : null;
     const btn = el("button", {
       type: "button",
-      class: "team-btn" + (chosen && String(chosen) === String(id) ? " chosen" : "") + (known ? "" : " tbd") + (pickerReadOnly ? " readonly" : ""),
+      class: "team-btn" + (isChosen ? " chosen" : "") + (known ? "" : " tbd") + (pickerReadOnly ? " readonly" : "") + (grade ? " " + grade : ""),
       disabled: interactive ? null : "disabled",
       onclick: interactive ? () => choosePick(round, slot, String(id)) : null,
     });
@@ -563,6 +600,8 @@ function drawPickerMatch(round, slot) {
       const f = teamFlag(team(id));
       if (f) btn.appendChild(f);
       btn.appendChild(el("span", { class: "team-btn-name" }, teamName(id)));
+      if (grade === "correct") btn.appendChild(el("span", { class: "pick-mark correct" }, "✓"));
+      else if (grade === "wrong") btn.appendChild(el("span", { class: "pick-mark wrong" }, "✗"));
     } else {
       btn.appendChild(el("span", { class: "team-btn-name muted" }, "Winner TBD"));
     }
@@ -790,8 +829,19 @@ function drawPickRow(m, savedPreds) {
 
   const saved = savedPreds[String(m.id)] || {};
   if (kicked) {
-    const note = saved.home != null ? `Your pick: ${saved.home}–${saved.away}` : "No pick";
-    row.appendChild(el("div", { class: "pick-locked-note" }, note));
+    if (saved.home != null) {
+      const noteEl = el("div", { class: "pick-locked-note" },
+        el("span", {}, `Your pick: ${saved.home}–${saved.away}`));
+      const grade = scorePrediction(saved, m); // null until full time
+      if (grade) {
+        const kind = grade.exact ? "correct" : grade.points > 0 ? "partial" : "wrong";
+        const label = grade.exact ? `✓ Exact +${grade.points}` : grade.points > 0 ? `~ Right result +${grade.points}` : "✗ Miss";
+        noteEl.appendChild(el("span", { class: "pick-result " + kind }, label));
+      }
+      row.appendChild(noteEl);
+    } else {
+      row.appendChild(el("div", { class: "pick-locked-note" }, "No pick"));
+    }
   } else {
     const input = el("div", { class: "pick-input" });
     const h = el("input", { type: "number", min: "0", max: "20", class: "goal-in", placeholder: "0" });

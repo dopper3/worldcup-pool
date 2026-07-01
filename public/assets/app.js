@@ -419,8 +419,49 @@ function renderBracketStandings(bracketData) {
         el("strong", {}, "Golden Boot pick: "), t.goldenBoot, el("span", { class: "muted" }, " (settled manually)"),
       ]));
     }
+
+    // Expandable: see this entrant's full bracket (with right/wrong cues).
+    const detail = el("div", { class: "entry-bracket", hidden: "hidden" });
+    const toggle = el("button", { class: "entry-toggle", type: "button" }, "View full bracket ▾");
+    let built = false;
+    toggle.addEventListener("click", () => {
+      const show = detail.hidden;
+      detail.hidden = !show;
+      toggle.textContent = show ? "Hide full bracket ▴" : "View full bracket ▾";
+      if (show && !built) { renderEntrantBracket(detail, t.picks || {}); built = true; }
+    });
+    card.appendChild(toggle);
+    card.appendChild(detail);
     root.appendChild(card);
   }
+}
+
+// Render one entrant's full bracket into a container, read-only with grade
+// cues. Temporarily borrows the picker globals (pickSel/bracketGrades), which
+// the synchronous draw consumes before they're restored.
+function renderEntrantBracket(container, picks) {
+  const sel0 = pickSel, grades0 = bracketGrades, ro0 = pickerReadOnly;
+  pickSel = {};
+  const winners = (picks && picks.winners) || {};
+  for (const round of ROUND_ORDER) {
+    for (const [slot, id] of Object.entries(winners[round] || {})) pickSel[`${round}-${slot}`] = String(id);
+  }
+  sanitizePicks();
+  pickerReadOnly = true;
+  bracketGrades = gradeBracketPicks();
+
+  container.innerHTML = "";
+  const rounds = el("div", { class: "bracket-rounds" });
+  drawPickerRounds(rounds);
+  container.appendChild(rounds);
+
+  const champ = pickSel["F-1"];
+  const bits = [`Champion: ${champ ? teamName(champ) : "—"}`];
+  if ((picks.goldenBoot || "").trim()) bits.push(`Golden Boot: ${picks.goldenBoot.trim()}`);
+  if (picks.finalWinnerGoals != null && picks.finalLoserGoals != null) bits.push(`Final: ${picks.finalWinnerGoals}–${picks.finalLoserGoals}`);
+  container.appendChild(el("p", { class: "entry-bracket-foot" }, bits.join(" · ")));
+
+  pickSel = sel0; bracketGrades = grades0; pickerReadOnly = ro0;
 }
 
 // ===========================================================================
@@ -672,9 +713,10 @@ function renderPredictionStandings(predData) {
   const players = new Map();
   for (const e of entries) {
     const key = e.displayName.trim().toLowerCase();
-    if (!players.has(key)) players.set(key, { displayName: e.displayName, total: 0, exact: 0, made: 0, scored: 0 });
+    if (!players.has(key)) players.set(key, { displayName: e.displayName, total: 0, exact: 0, made: 0, scored: 0, picks: [] });
     const p = players.get(key);
     p.made++;
+    p.picks.push({ matchId: e.matchId, home: e.home, away: e.away, revealed: e.revealed });
     if (!e.revealed || e.home == null) continue;
     const m = MATCH_BY_ID[String(e.matchId)];
     const s = scorePrediction({ home: e.home, away: e.away }, m);
@@ -701,19 +743,60 @@ function renderPredictionStandings(predData) {
   ])));
   const tbody = el("tbody");
   for (const r of rows) {
-    tbody.appendChild(el("tr", {}, [
+    const row = el("tr", { class: "lb-row" }, [
       el("td", { class: "pos" }, String(r.rank)),
-      el("td", {}, r.displayName),
+      el("td", {}, [r.displayName, el("span", { class: "lb-caret" }, " ▾")]),
       el("td", { class: "num" }, String(r.total)),
       el("td", { class: "num" }, String(r.exact)),
       el("td", { class: "num" }, String(r.made)),
-    ]));
+    ]);
+    const detail = el("tr", { class: "lb-detail", hidden: "hidden" });
+    const cell = el("td", { colspan: "5" });
+    detail.appendChild(cell);
+    let built = false;
+    row.addEventListener("click", () => {
+      const show = detail.hidden;
+      detail.hidden = !show;
+      row.classList.toggle("open", show);
+      if (show && !built) { renderPlayerPredDetail(cell, r.picks); built = true; }
+    });
+    tbody.appendChild(row);
+    tbody.appendChild(detail);
   }
   table.appendChild(tbody);
   root.appendChild(table);
 
   const bonus = renderThirdPlaceBonus(predData);
   if (bonus) root.appendChild(bonus);
+}
+
+// One player's per-match predictions, shown when their leaderboard row is open.
+function renderPlayerPredDetail(container, picks) {
+  container.innerHTML = "";
+  const list = (picks || []).slice().sort((a, b) => {
+    const ma = MATCH_BY_ID[String(a.matchId)], mb = MATCH_BY_ID[String(b.matchId)];
+    return (ma ? ma.matchNumber : 0) - (mb ? mb.matchNumber : 0);
+  });
+  if (!list.length) { container.appendChild(el("p", { class: "muted" }, "No picks yet.")); return; }
+  const wrap = el("div", { class: "pred-detail" });
+  for (const p of list) {
+    const m = MATCH_BY_ID[String(p.matchId)];
+    const row = el("div", { class: "pred-detail-row" });
+    row.appendChild(el("span", { class: "pred-detail-match" }, m ? `${m.home.name} v ${m.away.name}` : "Match"));
+    if (!p.revealed || p.home == null) {
+      row.appendChild(el("span", { class: "muted" }, p.revealed ? "No pick" : "Hidden until kickoff"));
+    } else {
+      row.appendChild(el("span", { class: "pred-detail-pick" }, `${p.home}–${p.away}`));
+      const g = scorePrediction({ home: p.home, away: p.away }, m);
+      if (g) {
+        const kind = g.exact ? "correct" : g.points > 0 ? "partial" : "wrong";
+        const label = g.exact ? `✓ Exact +${g.points}` : g.points > 0 ? `~ Result +${g.points}` : "✗ Miss";
+        row.appendChild(el("span", { class: "pick-result " + kind }, label));
+      }
+    }
+    wrap.appendChild(row);
+  }
+  container.appendChild(wrap);
 }
 
 function renderThirdPlaceBonus(predData) {
